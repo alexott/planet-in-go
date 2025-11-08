@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+    <title>{{.Name}}</title>
+    <link href="{{.Link}}" rel="alternate"/>
+    <link href="{{.Link}}/atom.xml" rel="self"/>
+    <id>{{.Link}}</id>
+    <updated>{{.DateISO}}</updated>
+    {{if .OwnerName}}
+    <author>
+        <name>{{.OwnerName}}</name>
+        {{if .OwnerEmail}}<email>{{.OwnerEmail}}</email>{{end}}
+    </author>
+    {{end}}
+    <generator uri="https://github.com/alexey-ott/planet-go">{{.Generator}}</generator>
+
+    {{range .Items}}
+    <entry>
+        <title type="html">{{.Title}}</title>
+        <link href="{{.Link}}" rel="alternate"/>
+        {{if .ID}}<id>{{.ID}}</id>{{else}}<id>{{.Link}}</id>{{end}}
+        <updated>{{.DateISO}}</updated>
+        <content type="html">{{.Content}}</content>
+        {{if .Author}}
+        <author>
+            <name>{{.Author}}</name>
+            {{if .AuthorEmail}}<email>{{.AuthorEmail}}</email>{{end}}
+        </author>
+        {{end}}
+        <source>
+            <title>{{.ChannelTitle}}</title>
+            <link href="{{.ChannelLink}}" rel="alternate"/>
+        </source>
+    </entry>
+    {{end}}
+</feed>
+
