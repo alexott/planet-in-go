@@ -43,6 +43,7 @@ type TemplateEntry struct {
 	Author       string
 	AuthorEmail  string
 	Date         string
+	Date822      string  // RFC 822 format for RSS 2.0
 	DateISO      string
 	ID           string
 	ChannelName  string
@@ -50,13 +51,26 @@ type TemplateEntry struct {
 	ChannelTitle string
 	NewDate      bool
 	NewChannel   bool
+	
+	// Additional metadata for Atom templates
+	ChannelLanguage    string
+	TitleLanguage      string
+	ContentLanguage    string
+	ChannelAuthorName  string
+	ChannelAuthorEmail string
+	ChannelSubtitle    string
+	ChannelURL         string
+	ChannelID          string
+	ChannelUpdatedISO  string
+	ChannelRights      string
 }
 
 // Channel represents a feed channel
 type Channel struct {
 	Name  string
-	Link  string
+	Link  string    // HTML page URL
 	Title string
+	URL   string    // Feed URL
 }
 
 // Render renders a template with entries
@@ -165,6 +179,12 @@ func (r *Renderer) prepareTemplateData(entries []cache.Entry, cfg *config.Config
 	for _, entry := range entries {
 		dateStr := entry.Date.Format(cfg.Planet.DateFormat)
 
+		// Format channel updated time
+		channelUpdatedISO := ""
+		if !entry.ChannelUpdated.IsZero() {
+			channelUpdatedISO = entry.ChannelUpdated.Format(time.RFC3339)
+		}
+
 		item := TemplateEntry{
 			Title:        entry.Title,
 			Link:         entry.Link,
@@ -172,6 +192,7 @@ func (r *Renderer) prepareTemplateData(entries []cache.Entry, cfg *config.Config
 			Author:       entry.Author,
 			AuthorEmail:  entry.AuthorEmail,
 			Date:         dateStr,
+			Date822:      entry.Date.Format(time.RFC1123Z),  // RFC 822 format
 			DateISO:      entry.Date.Format(time.RFC3339),
 			ID:           entry.ID,
 			ChannelName:  entry.ChannelName,
@@ -179,6 +200,18 @@ func (r *Renderer) prepareTemplateData(entries []cache.Entry, cfg *config.Config
 			ChannelTitle: entry.ChannelTitle,
 			NewDate:      dateStr != prevDate,
 			NewChannel:   entry.ChannelName != prevChannel,
+			
+			// Additional metadata
+			ChannelLanguage:    entry.ChannelLanguage,
+			TitleLanguage:      entry.TitleLanguage,
+			ContentLanguage:    entry.ContentLanguage,
+			ChannelAuthorName:  entry.ChannelAuthorName,
+			ChannelAuthorEmail: entry.ChannelAuthorEmail,
+			ChannelSubtitle:    entry.ChannelSubtitle,
+			ChannelURL:         entry.ChannelURL,
+			ChannelID:          entry.ChannelID,
+			ChannelUpdatedISO:  channelUpdatedISO,
+			ChannelRights:      entry.ChannelRights,
 		}
 
 		data.Items = append(data.Items, item)
@@ -189,6 +222,7 @@ func (r *Renderer) prepareTemplateData(entries []cache.Entry, cfg *config.Config
 				Name:  entry.ChannelName,
 				Link:  entry.ChannelLink,
 				Title: entry.ChannelTitle,
+				URL:   entry.ChannelURL,  // Feed URL
 			}
 		}
 

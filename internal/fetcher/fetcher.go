@@ -267,6 +267,32 @@ func (f *SequentialFetcher) convertEntries(feed *gofeed.Feed, feedConfig config.
 		channelName = feed.Title
 	}
 
+	// Extract channel-level metadata once (same for all entries)
+	channelLanguage := feed.Language
+	channelSubtitle := feed.Description
+	channelURL := feedConfig.URL // Feed URL
+	channelRights := feed.Copyright
+
+	// Channel author
+	channelAuthorName := ""
+	channelAuthorEmail := ""
+	if feed.Author != nil {
+		channelAuthorName = feed.Author.Name
+		channelAuthorEmail = feed.Author.Email
+	}
+
+	// Channel ID (prefer feed ID, fall back to feed link)
+	channelID := feed.FeedLink
+	if channelID == "" {
+		channelID = feed.Link
+	}
+
+	// Channel updated time
+	channelUpdated := time.Time{}
+	if feed.UpdatedParsed != nil {
+		channelUpdated = *feed.UpdatedParsed
+	}
+
 	for _, item := range feed.Items {
 		// Get published date, fall back to updated
 		date := time.Now()
@@ -303,6 +329,18 @@ func (f *SequentialFetcher) convertEntries(feed *gofeed.Feed, feedConfig config.
 			ChannelName:  channelName,
 			ChannelLink:  feed.Link,
 			ChannelTitle: feed.Title,
+
+			// Additional channel metadata
+			ChannelLanguage:    channelLanguage,
+			TitleLanguage:      channelLanguage, // Use channel language as default
+			ContentLanguage:    channelLanguage, // Use channel language as default
+			ChannelAuthorName:  channelAuthorName,
+			ChannelAuthorEmail: channelAuthorEmail,
+			ChannelSubtitle:    channelSubtitle,
+			ChannelURL:         channelURL,
+			ChannelID:          channelID,
+			ChannelUpdated:     channelUpdated,
+			ChannelRights:      channelRights,
 		}
 
 		entries = append(entries, entry)

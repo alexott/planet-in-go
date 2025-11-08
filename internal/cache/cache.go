@@ -22,6 +22,18 @@ type Entry struct {
 	ChannelName  string    `json:"channel_name"`
 	ChannelLink  string    `json:"channel_link"`
 	ChannelTitle string    `json:"channel_title"`
+	
+	// Additional metadata for templates
+	ChannelLanguage    string    `json:"channel_language,omitempty"`
+	TitleLanguage      string    `json:"title_language,omitempty"`
+	ContentLanguage    string    `json:"content_language,omitempty"`
+	ChannelAuthorName  string    `json:"channel_author_name,omitempty"`
+	ChannelAuthorEmail string    `json:"channel_author_email,omitempty"`
+	ChannelSubtitle    string    `json:"channel_subtitle,omitempty"`
+	ChannelURL         string    `json:"channel_url,omitempty"`         // Feed URL
+	ChannelID          string    `json:"channel_id,omitempty"`
+	ChannelUpdated     time.Time `json:"channel_updated,omitempty"`
+	ChannelRights      string    `json:"channel_rights,omitempty"`
 }
 
 // Metadata holds HTTP caching information

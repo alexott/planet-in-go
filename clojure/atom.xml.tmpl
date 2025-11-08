@@ -1,6 +1,3 @@
-{{/* Note: This template requires additional fields not yet implemented in TemplateEntry */}}
-{{/* Missing fields: channel_language, title_language, content_language, channel_author_name, */}}
-{{/* channel_author_email, channel_subtitle, channel_url, channel_id, channel_updated_iso, channel_rights */}}
 <?xml version="1.0" encoding="utf-8" standalone="yes" ?>
 <feed xmlns="http://www.w3.org/2005/Atom">
 
@@ -12,21 +9,26 @@
 	<generator uri="http://www.planetplanet.org/">{{.Generator}}</generator>
 
 {{range .Items}}
-	<entry>
-		<title type="html">{{.Title}}</title>
+	<entry{{if .ChannelLanguage}} xml:lang="{{.ChannelLanguage}}"{{end}}>
+		<title type="html"{{if .TitleLanguage}} xml:lang="{{.TitleLanguage}}"{{end}}>{{.Title}}</title>
 		<link href="{{.Link}}"/>
 		<id>{{.ID}}</id>
 		<updated>{{.DateISO}}</updated>
-		<content type="html">{{.Content}}</content>
+		<content type="html"{{if .ContentLanguage}} xml:lang="{{.ContentLanguage}}"{{end}}>{{.Content}}</content>
 		<author>
 {{if .Author}}
 			<name>{{.Author}}</name>
 {{if .AuthorEmail}}
 			<email>{{.AuthorEmail}}</email>
 {{end}}
+{{else}}{{if .ChannelAuthorName}}
+			<name>{{.ChannelAuthorName}}</name>
+{{if .ChannelAuthorEmail}}
+			<email>{{.ChannelAuthorEmail}}</email>
+{{end}}
 {{else}}
 			<name>{{.ChannelName}}</name>
-{{end}}
+{{end}}{{end}}
 			<uri>{{.ChannelLink}}</uri>
 		</author>
 		<source>
@@ -35,8 +37,21 @@
 {{else}}
 			<title type="html">{{.ChannelName}}</title>
 {{end}}
-			<link rel="self" href="{{.ChannelLink}}"/>
-			<id>{{.ChannelLink}}</id>
+{{if .ChannelSubtitle}}
+			<subtitle type="html">{{.ChannelSubtitle}}</subtitle>
+{{end}}
+			<link rel="self" href="{{.ChannelURL}}"/>
+{{if .ChannelID}}
+			<id>{{.ChannelID}}</id>
+{{else}}
+			<id>{{.ChannelURL}}</id>
+{{end}}
+{{if .ChannelUpdatedISO}}
+			<updated>{{.ChannelUpdatedISO}}</updated>
+{{end}}
+{{if .ChannelRights}}
+			<rights type="html">{{.ChannelRights}}</rights>
+{{end}}
 		</source>
 	</entry>
 

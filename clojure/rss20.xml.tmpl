@@ -1,4 +1,3 @@
-{{/* Note: This template requires RFC 822 date format (date_822) not yet implemented */}}
 <?xml version="1.0"?>
 <rss version="2.0">
 
@@ -16,7 +15,7 @@
 	{{if .Content}}
 	<description>{{.Content}}</description>
 	{{end}}
-	<pubDate>{{.Date}}</pubDate>
+	<pubDate>{{.Date822}}</pubDate>
 	{{if .AuthorEmail}}
 	{{if .Author}}
 	<author>{{.AuthorEmail}} ({{.Author}})</author>
