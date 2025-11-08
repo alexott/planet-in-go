@@ -1,0 +1,44 @@
+{{/* Note: This template requires additional fields not yet implemented in TemplateEntry */}}
+{{/* Missing fields: channel_language, title_language, content_language, channel_author_name, */}}
+{{/* channel_author_email, channel_subtitle, channel_url, channel_id, channel_updated_iso, channel_rights */}}
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+	<title>{{.Name}}</title>
+	<link rel="self" href="{{.Link}}/atom.xml"/>
+	<link href="{{.Link}}"/>
+	<id>{{.Link}}/atom.xml</id>
+	<updated>{{.DateISO}}</updated>
+	<generator uri="http://www.planetplanet.org/">{{.Generator}}</generator>
+
+{{range .Items}}
+	<entry>
+		<title type="html">{{.Title}}</title>
+		<link href="{{.Link}}"/>
+		<id>{{.ID}}</id>
+		<updated>{{.DateISO}}</updated>
+		<content type="html">{{.Content}}</content>
+		<author>
+{{if .Author}}
+			<name>{{.Author}}</name>
+{{if .AuthorEmail}}
+			<email>{{.AuthorEmail}}</email>
+{{end}}
+{{else}}
+			<name>{{.ChannelName}}</name>
+{{end}}
+			<uri>{{.ChannelLink}}</uri>
+		</author>
+		<source>
+{{if .ChannelTitle}}
+			<title type="html">{{.ChannelTitle}}</title>
+{{else}}
+			<title type="html">{{.ChannelName}}</title>
+{{end}}
+			<link rel="self" href="{{.ChannelLink}}"/>
+			<id>{{.ChannelLink}}</id>
+		</source>
+	</entry>
+
+{{end}}
+</feed>

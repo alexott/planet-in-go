@@ -1,0 +1,31 @@
+{{/* Note: This template requires RFC 822 date format (date_822) not yet implemented */}}
+<?xml version="1.0"?>
+<rss version="2.0">
+
+<channel>
+	<title>{{.Name}}</title>
+	<link>{{.Link}}</link>
+	<language>en</language>
+	<description>{{.Name}} - {{.Link}}</description>
+
+{{range .Items}}
+<item>
+	<title>{{.ChannelName}}{{if .Title}}: {{.Title}}{{end}}</title>
+	<guid>{{.ID}}</guid>
+	<link>{{.Link}}</link>
+	{{if .Content}}
+	<description>{{.Content}}</description>
+	{{end}}
+	<pubDate>{{.Date}}</pubDate>
+	{{if .AuthorEmail}}
+	{{if .Author}}
+	<author>{{.AuthorEmail}} ({{.Author}})</author>
+	{{else}}
+	<author>{{.AuthorEmail}}</author>
+	{{end}}
+	{{end}}
+</item>
+{{end}}
+
+</channel>
+</rss>

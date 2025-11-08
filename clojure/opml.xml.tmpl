@@ -1,0 +1,16 @@
+{{/* Note: This template requires Channel.URL field (feed URL) not yet implemented */}}
+<?xml version="1.0"?>
+<opml version="1.1">
+	<head>
+		<title>{{.Name}}</title>
+		<dateModified>{{.Date}}</dateModified>
+		<ownerName>{{.OwnerName}}</ownerName>
+		<ownerEmail>{{.OwnerEmail}}</ownerEmail>
+	</head>
+	
+	<body>
+		{{range .Channels}}
+		<outline type="rss" text="{{.Name}}" xmlUrl="{{.Link}}" title="{{if .Title}}{{.Title}}{{else}}{{.Name}}{{end}}"{{if .Link}} htmlUrl="{{.Link}}"{{end}} />
+		{{end}}
+	</body>
+</opml>
