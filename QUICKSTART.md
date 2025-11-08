@@ -15,7 +15,7 @@ cd planet-go
 make build
 
 # Verify installation
-./planet -version
+./planet version
 ```
 
 ### Option B: Go Install
@@ -24,7 +24,7 @@ make build
 go install github.com/alexey-ott/planet-go/cmd/planet@latest
 
 # Verify installation
-planet -version
+planet version
 ```
 
 ## Step 2: Try the Example
@@ -130,6 +130,42 @@ INFO  done entries=20
 
 Your rendered page is now in `output/index.html`! 🎉
 
+### Debug Mode
+
+If you have issues or want to see what's happening in detail:
+
+```bash
+./planet run -c config.ini -debug
+```
+
+This shows:
+- HTTP connection details
+- Request/response timing
+- Parse durations
+- Cache operations
+- Detailed error messages
+
+## Advanced Usage
+
+### Separate Fetch and Render
+
+You can fetch feeds and render templates separately:
+
+```bash
+# Fetch all feeds once
+./planet fetch -c config.ini
+
+# Render templates multiple times (useful when editing templates)
+./planet render -c config.ini
+# ... edit template ...
+./planet render -c config.ini  # Re-render with changes
+```
+
+This is useful when:
+- Testing template changes without re-fetching feeds
+- Debugging rendering issues
+- Working with large feed lists that take time to fetch
+
 ## Step 6: Automate It
 
 ### With Cron
@@ -137,7 +173,10 @@ Your rendered page is now in `output/index.html`! 🎉
 Add to your crontab:
 
 ```bash
-# Update every hour
+# Update every hour (fetch and render)
+0 * * * * cd /path/to/planet-go && ./planet run -c config.ini
+
+# Or use default behavior (same as "run")
 0 * * * * cd /path/to/planet-go && ./planet -c config.ini
 ```
 
@@ -152,7 +191,7 @@ Description=Planet Go Feed Aggregator
 [Service]
 Type=oneshot
 WorkingDirectory=/path/to/planet-go
-ExecStart=/path/to/planet-go/planet -c config.ini
+ExecStart=/path/to/planet-go/planet run -c config.ini
 ```
 
 Create `/etc/systemd/system/planet.timer`:
@@ -226,14 +265,38 @@ items_per_page = 30
 
 ## Troubleshooting
 
-### "feed timeout"
+### Feeds hanging or timing out
 
-Increase the timeout:
+**Problem:** Planet hangs for several minutes when fetching feeds.
+
+**Solution 1:** Enable debug mode to see what's happening:
+
+```bash
+./planet -debug -c config.ini
+```
+
+This shows exactly which feed is slow or hanging.
+
+**Solution 2:** Increase the timeout:
 
 ```ini
 [Planet]
 feed_timeout = 60  # 60 seconds instead of default 20
 ```
+
+**Note:** With the improved timeout handling, connections now timeout after:
+- 10 seconds for initial connection
+- 10 seconds for TLS handshake
+- 20 seconds (or config value) for reading response
+
+### "feed timeout"
+
+If you see timeout errors in debug mode, the feed might be:
+- Down or unreachable
+- Very slow to respond
+- Blocking connections
+
+Try accessing the feed URL in your browser to verify it works.
 
 ### "template failed"
 
@@ -253,6 +316,15 @@ mkdir -p cache output
 ```
 
 Or Planet Go will create them automatically on first run.
+
+### Debug output shows connection refused
+
+The feed server might be:
+- Blocking your IP (check if you're making too many requests)
+- Behind a firewall
+- Temporarily down
+
+Planet Go will use cached data if available.
 
 ## Next Steps
 

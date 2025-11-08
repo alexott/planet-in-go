@@ -39,11 +39,38 @@ go install github.com/alexey-ott/planet-go/cmd/planet@latest
 ## Usage
 
 ```bash
-# Basic usage
-./planet -c config.ini
+# Basic usage - fetch and render (uses config.ini by default)
+./planet
+./planet -c path/to/config.ini
 
-# Show version
-./planet -version
+# Explicit subcommands
+./planet run -c config.ini           # Fetch feeds and render templates (default)
+./planet fetch -c config.ini         # Only fetch and cache feeds
+./planet render -c config.ini        # Only render templates from cache
+
+# Other commands
+./planet version                     # Show version information
+./planet --help                      # Show help message
+
+# Enable debug logging (shows detailed timing and connection info)
+./planet run -c config.ini -debug
+./planet fetch -c config.ini -debug
+```
+
+### Workflow Examples
+
+```bash
+# Typical workflow: fetch and render together
+./planet run -c config.ini
+
+# Separate workflow: fetch first, then render multiple times
+./planet fetch -c config.ini         # Fetch all feeds once
+./planet render -c config.ini        # Render with current template
+# ... edit templates ...
+./planet render -c config.ini        # Re-render with updated template
+
+# Debug a slow feed
+./planet fetch -c config.ini -debug  # Shows timing for each feed
 ```
 
 ## Configuration

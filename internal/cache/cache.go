@@ -1,11 +1,12 @@
 package cache
 
 import (
-	"crypto/md5"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strings"
 	"time"
 )
 
@@ -165,9 +166,36 @@ func (c *Cache) LoadAll() ([]Entry, error) {
 	return allEntries, nil
 }
 
+// sanitizeURL converts a URL into a safe filename
+// Example: https://go.dev/blog/feed.atom -> go.dev-blog-feed.atom
+func sanitizeURL(url string) string {
+	// Remove scheme (http://, https://, etc.)
+	url = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9+.-]*://`).ReplaceAllString(url, "")
+	
+	// Remove trailing slash
+	url = strings.TrimSuffix(url, "/")
+	
+	// Replace invalid filename characters with dash
+	// Keep alphanumeric, dots, and replace everything else with dash
+	url = regexp.MustCompile(`[^a-zA-Z0-9._-]`).ReplaceAllString(url, "-")
+	
+	// Replace multiple consecutive dashes with single dash
+	url = regexp.MustCompile(`-+`).ReplaceAllString(url, "-")
+	
+	// Trim leading/trailing dashes
+	url = strings.Trim(url, "-")
+	
+	// Ensure filename is not too long (max 200 chars before .json)
+	if len(url) > 200 {
+		url = url[:200]
+		url = strings.TrimSuffix(url, "-")
+	}
+	
+	return url
+}
+
 // cachePath returns the file path for a feed URL
 func (c *Cache) cachePath(feedURL string) string {
-	hash := md5.Sum([]byte(feedURL))
-	filename := fmt.Sprintf("%x.json", hash)
+	filename := sanitizeURL(feedURL) + ".json"
 	return filepath.Join(c.directory, filename)
 }

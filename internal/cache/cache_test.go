@@ -112,3 +112,61 @@ func TestCache_Metadata(t *testing.T) {
 		t.Errorf("LastModified = %q, want %q", loadedMeta.LastModified, meta.LastModified)
 	}
 }
+
+func TestSanitizeURL(t *testing.T) {
+	tests := []struct {
+		name string
+		url  string
+		want string
+	}{
+		{
+			name: "simple https URL",
+			url:  "https://go.dev/blog/feed.atom",
+			want: "go.dev-blog-feed.atom",
+		},
+		{
+			name: "http URL with path",
+			url:  "http://example.com/rss/feed.xml",
+			want: "example.com-rss-feed.xml",
+		},
+		{
+			name: "URL with query params",
+			url:  "https://example.com/feed?format=rss&lang=en",
+			want: "example.com-feed-format-rss-lang-en",
+		},
+		{
+			name: "URL with special characters",
+			url:  "https://example.com/blog/2024/01/my-post!@#$%^&*()",
+			want: "example.com-blog-2024-01-my-post",
+		},
+		{
+			name: "URL with trailing slash",
+			url:  "https://example.com/feed/",
+			want: "example.com-feed",
+		},
+		{
+			name: "URL with multiple slashes",
+			url:  "https://example.com/path/to/feed",
+			want: "example.com-path-to-feed",
+		},
+		{
+			name: "URL with port",
+			url:  "https://example.com:8080/feed.xml",
+			want: "example.com-8080-feed.xml",
+		},
+		{
+			name: "subdomain",
+			url:  "https://blog.example.com/feed.xml",
+			want: "blog.example.com-feed.xml",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := sanitizeURL(tt.url)
+			if got != tt.want {
+				t.Errorf("sanitizeURL(%q) = %q, want %q", tt.url, got, tt.want)
+			}
+		})
+	}
+}
