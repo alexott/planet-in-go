@@ -249,4 +249,3 @@ func calculateTwitterLength(text string) int {
 	}
 	return length
 }
-

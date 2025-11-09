@@ -129,4 +129,3 @@ func BenchmarkFilter_Apply_LargeDataset(b *testing.B) {
 		_ = filter.Apply(entries)
 	}
 }
-

@@ -32,7 +32,7 @@ func TestSequentialFetcher_FetchFeeds(t *testing.T) {
 
 	tmpDir := t.TempDir()
 	cache := cache.New(tmpDir)
-	fetcher := NewSequential(20, cache)
+	fetcher := NewSequential(20, cache, false)
 
 	feeds := []config.FeedConfig{
 		{URL: server.URL, Name: "Test Feed"},
@@ -91,7 +91,7 @@ func TestSequentialFetcher_ConditionalGET(t *testing.T) {
 
 	tmpDir := t.TempDir()
 	cache := cache.New(tmpDir)
-	fetcher := NewSequential(20, cache)
+	fetcher := NewSequential(20, cache, false)
 
 	feeds := []config.FeedConfig{
 		{URL: server.URL, Name: "Test Feed"},

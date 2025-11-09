@@ -30,3 +30,4 @@ go.work
 
 /clojure/cache/
 *.log
+/clojure/output/

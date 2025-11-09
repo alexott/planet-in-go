@@ -1,8 +1,10 @@
 package fetcher
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
 	"net"
 	"net/http"
@@ -32,10 +34,11 @@ type SequentialFetcher struct {
 	timeout time.Duration
 	cache   *cache.Cache
 	parser  *gofeed.Parser
+	debug   bool
 }
 
 // NewSequential creates a new sequential fetcher
-func NewSequential(timeoutSeconds int, cache *cache.Cache) *SequentialFetcher {
+func NewSequential(timeoutSeconds int, cache *cache.Cache, debug bool) *SequentialFetcher {
 	timeout := time.Duration(timeoutSeconds) * time.Second
 
 	// Configure transport with aggressive timeouts to prevent hangs
@@ -72,6 +75,7 @@ func NewSequential(timeoutSeconds int, cache *cache.Cache) *SequentialFetcher {
 		timeout: timeout,
 		cache:   cache,
 		parser:  gofeed.NewParser(),
+		debug:   debug,
 	}
 }
 
@@ -204,11 +208,32 @@ func (f *SequentialFetcher) fetchOne(ctx context.Context, feed config.FeedConfig
 		return result
 	}
 
-	// Parse feed
+	// Read response body so we can optionally save raw data for debugging
+	slog.Debug("reading response body", "url", feed.URL)
+	bodyStart := time.Now()
+	bodyBytes, err := io.ReadAll(resp.Body)
+	bodyDuration := time.Since(bodyStart)
+	if err != nil {
+		result.Error = fmt.Errorf("read response body: %w", err)
+		slog.Error("failed to read response body", "url", feed.URL, "error", err)
+		return result
+	}
+
+	// If debug mode is enabled, save the raw response body as .xml in cache
+	if f.debug {
+		if err := f.cache.SaveRaw(feed.URL, bodyBytes); err != nil {
+			slog.Warn("failed to save raw response body", "url", feed.URL, "error", err)
+		} else {
+			slog.Debug("saved raw response body", "url", feed.URL, "size", len(bodyBytes))
+		}
+	}
+
+	// Parse feed from the bytes reader
 	slog.Debug("parsing feed", "url", feed.URL)
 	parseStart := time.Now()
-	parsedFeed, err := f.parser.Parse(resp.Body)
+	parsedFeed, err := f.parser.Parse(bytes.NewReader(bodyBytes))
 	parseDuration := time.Since(parseStart)
+	slog.Debug("response body read duration", "url", feed.URL, "duration", bodyDuration)
 
 	if err != nil {
 		result.Error = fmt.Errorf("parse feed: %w", err)
@@ -294,12 +319,18 @@ func (f *SequentialFetcher) convertEntries(feed *gofeed.Feed, feedConfig config.
 	}
 
 	for _, item := range feed.Items {
-		// Get published date, fall back to updated
-		date := time.Now()
+		// Get published date, fall back to updated, fall back to channel updated.
+		// Do NOT default to time.Now() — that makes old items look like new ones
+		// if the feed item lacks date metadata. Prefer leaving date zeroTime so
+		// the renderer can decide how to display it.
+		var date time.Time
 		if item.PublishedParsed != nil {
 			date = *item.PublishedParsed
 		} else if item.UpdatedParsed != nil {
 			date = *item.UpdatedParsed
+		} else if feed.UpdatedParsed != nil {
+			// If the channel/feed has an updated timestamp, use it as a last-resort
+			date = *feed.UpdatedParsed
 		}
 
 		// Get content, fall back to description

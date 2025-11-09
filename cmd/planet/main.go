@@ -178,7 +178,7 @@ func loadConfig(configPath string, debugMode bool) (*config.Config, error) {
 }
 
 // fetchFeeds fetches all feeds and returns timing info
-func fetchFeeds(cfg *config.Config) (successCount, cachedCount, errorCount int, duration time.Duration, err error) {
+func fetchFeeds(cfg *config.Config, debugMode bool) (successCount, cachedCount, errorCount int, duration time.Duration, err error) {
 	// Ensure cache directory exists
 	if err := os.MkdirAll(cfg.Planet.CacheDirectory, 0755); err != nil {
 		return 0, 0, 0, 0, fmt.Errorf("create cache directory: %w", err)
@@ -190,7 +190,7 @@ func fetchFeeds(cfg *config.Config) (successCount, cachedCount, errorCount int, 
 		"timeout", cfg.Planet.FeedTimeout)
 
 	cacheInstance := cache.New(cfg.Planet.CacheDirectory)
-	fetcherInstance := fetcher.NewSequential(cfg.Planet.FeedTimeout, cacheInstance)
+	fetcherInstance := fetcher.NewSequential(cfg.Planet.FeedTimeout, cacheInstance, debugMode)
 
 	// Log first few feeds at INFO level
 	feedsToShow := 3
@@ -396,7 +396,7 @@ func runFetchAndRender(configPath string, debugMode bool) error {
 		"feeds", len(cfg.Feeds))
 
 	// Run fetch
-	if err := doFetch(cfg); err != nil {
+	if err := doFetch(cfg, debugMode); err != nil {
 		return err
 	}
 
@@ -426,8 +426,8 @@ func runFetchAndRender(configPath string, debugMode bool) error {
 }
 
 // doFetch performs the fetch operation (internal, used by commands)
-func doFetch(cfg *config.Config) error {
-	successCount, cachedCount, errorCount, _, err := fetchFeeds(cfg)
+func doFetch(cfg *config.Config, debugMode bool) error {
+	successCount, cachedCount, errorCount, _, err := fetchFeeds(cfg, debugMode)
 	if err != nil {
 		return fmt.Errorf("fetch feeds: %w", err)
 	}
@@ -451,7 +451,7 @@ func runFetch(configPath string, debugMode bool) error {
 		"version", version,
 		"feeds", len(cfg.Feeds))
 
-	return doFetch(cfg)
+	return doFetch(cfg, debugMode)
 }
 
 // doRender performs the render operation (internal, used by commands)

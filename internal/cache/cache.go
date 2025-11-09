@@ -22,7 +22,7 @@ type Entry struct {
 	ChannelName  string    `json:"channel_name"`
 	ChannelLink  string    `json:"channel_link"`
 	ChannelTitle string    `json:"channel_title"`
-	
+
 	// Additional metadata for templates
 	ChannelLanguage    string    `json:"channel_language,omitempty"`
 	TitleLanguage      string    `json:"title_language,omitempty"`
@@ -30,7 +30,7 @@ type Entry struct {
 	ChannelAuthorName  string    `json:"channel_author_name,omitempty"`
 	ChannelAuthorEmail string    `json:"channel_author_email,omitempty"`
 	ChannelSubtitle    string    `json:"channel_subtitle,omitempty"`
-	ChannelURL         string    `json:"channel_url,omitempty"`         // Feed URL
+	ChannelURL         string    `json:"channel_url,omitempty"` // Feed URL
 	ChannelID          string    `json:"channel_id,omitempty"`
 	ChannelUpdated     time.Time `json:"channel_updated,omitempty"`
 	ChannelRights      string    `json:"channel_rights,omitempty"`
@@ -183,26 +183,26 @@ func (c *Cache) LoadAll() ([]Entry, error) {
 func sanitizeURL(url string) string {
 	// Remove scheme (http://, https://, etc.)
 	url = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9+.-]*://`).ReplaceAllString(url, "")
-	
+
 	// Remove trailing slash
 	url = strings.TrimSuffix(url, "/")
-	
+
 	// Replace invalid filename characters with dash
 	// Keep alphanumeric, dots, and replace everything else with dash
 	url = regexp.MustCompile(`[^a-zA-Z0-9._-]`).ReplaceAllString(url, "-")
-	
+
 	// Replace multiple consecutive dashes with single dash
 	url = regexp.MustCompile(`-+`).ReplaceAllString(url, "-")
-	
+
 	// Trim leading/trailing dashes
 	url = strings.Trim(url, "-")
-	
+
 	// Ensure filename is not too long (max 200 chars before .json)
 	if len(url) > 200 {
 		url = url[:200]
 		url = strings.TrimSuffix(url, "-")
 	}
-	
+
 	return url
 }
 
@@ -210,4 +210,22 @@ func sanitizeURL(url string) string {
 func (c *Cache) cachePath(feedURL string) string {
 	filename := sanitizeURL(feedURL) + ".json"
 	return filepath.Join(c.directory, filename)
+}
+
+// SaveRaw saves the raw fetched feed body to disk with a .xml extension.
+// This is intended for debug purposes so the raw HTTP response can be
+// inspected alongside the JSON cache.
+func (c *Cache) SaveRaw(feedURL string, data []byte) error {
+	if err := os.MkdirAll(c.directory, 0755); err != nil {
+		return fmt.Errorf("create cache directory: %w", err)
+	}
+
+	filename := sanitizeURL(feedURL) + ".xml"
+	path := filepath.Join(c.directory, filename)
+
+	if err := os.WriteFile(path, data, 0644); err != nil {
+		return fmt.Errorf("write raw cache file: %w", err)
+	}
+
+	return nil
 }

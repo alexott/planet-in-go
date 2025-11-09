@@ -86,7 +86,7 @@ func BenchmarkPrepareTemplateData(b *testing.B) {
 	_ = cfg // Placeholder for config
 
 	renderer := New("/tmp/output")
-	
+
 	// Create mock config
 	mockConfig := struct {
 		Planet struct {
@@ -111,4 +111,3 @@ func BenchmarkPrepareTemplateData(b *testing.B) {
 	}
 	_ = renderer
 }
-

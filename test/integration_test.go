@@ -11,12 +11,13 @@ import (
 	"strings"
 	"testing"
 
+	"context"
+
 	"github.com/alexey-ott/planet-go/internal/cache"
 	"github.com/alexey-ott/planet-go/internal/config"
 	"github.com/alexey-ott/planet-go/internal/fetcher"
 	"github.com/alexey-ott/planet-go/internal/filter"
 	"github.com/alexey-ott/planet-go/internal/renderer"
-	"context"
 )
 
 func TestIntegration_FullPipeline(t *testing.T) {
@@ -84,19 +85,19 @@ func TestIntegration_FullPipeline(t *testing.T) {
 
 	// Step 1: Fetch feeds
 	cache := cache.New(cacheDir)
-	fetcher := fetcher.NewSequential(20, cache)
-	
+	fetcher := fetcher.NewSequential(20, cache, false)
+
 	results := fetcher.FetchFeeds(context.Background(), cfg.Feeds)
-	
+
 	if len(results) != 1 {
 		t.Fatalf("expected 1 result, got %d", len(results))
 	}
-	
+
 	result := results[0]
 	if result.Error != nil {
 		t.Fatalf("fetch failed: %v", result.Error)
 	}
-	
+
 	if len(result.Entries) != 3 {
 		t.Fatalf("expected 3 entries, got %d", len(result.Entries))
 	}
@@ -106,7 +107,7 @@ func TestIntegration_FullPipeline(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to load entries: %v", err)
 	}
-	
+
 	if len(entries) != 3 {
 		t.Fatalf("expected 3 cached entries, got %d", len(entries))
 	}
@@ -116,14 +117,14 @@ func TestIntegration_FullPipeline(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create filter: %v", err)
 	}
-	
+
 	filtered := filter.Apply(entries)
-	
+
 	// Should exclude the spam post
 	if len(filtered) != 2 {
 		t.Fatalf("expected 2 filtered entries, got %d", len(filtered))
 	}
-	
+
 	// Verify spam was filtered out
 	for _, entry := range filtered {
 		if strings.Contains(entry.Title, "Spam") {
@@ -153,9 +154,9 @@ func TestIntegration_FullPipeline(t *testing.T) {
 	if err := os.WriteFile(tmplPath, []byte(tmplContent), 0644); err != nil {
 		t.Fatal(err)
 	}
-	
+
 	cfg.Planet.TemplateFiles = []string{tmplPath}
-	
+
 	renderer := renderer.New(outputDir)
 	if err := renderer.Render(tmplPath, filtered, cfg); err != nil {
 		t.Fatalf("render failed: %v", err)
@@ -167,34 +168,34 @@ func TestIntegration_FullPipeline(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to read output: %v", err)
 	}
-	
+
 	html := string(content)
-	
+
 	// Verify content
 	if !strings.Contains(html, "Test Planet") {
 		t.Error("output missing planet name")
 	}
-	
+
 	if !strings.Contains(html, "Test Owner") {
 		t.Error("output missing owner name")
 	}
-	
+
 	if !strings.Contains(html, "First Post about Clojure") {
 		t.Error("output missing first post")
 	}
-	
+
 	if !strings.Contains(html, "Second Post about Go") {
 		t.Error("output missing second post")
 	}
-	
+
 	if strings.Contains(html, "Spam Post") {
 		t.Error("output contains filtered spam post")
 	}
-	
+
 	if !strings.Contains(html, "Planet Go") {
 		t.Error("output missing generator name")
 	}
-	
+
 	t.Logf("Integration test passed! Output:\n%s", html)
 }
 
@@ -205,13 +206,13 @@ func TestIntegration_ConditionalGET(t *testing.T) {
 	// Create test server that supports conditional GET
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requestCount++
-		
+
 		// Check for If-None-Match header
 		if r.Header.Get("If-None-Match") == etag {
 			w.WriteHeader(http.StatusNotModified)
 			return
 		}
-		
+
 		w.Header().Set("Content-Type", "application/rss+xml")
 		w.Header().Set("ETag", etag)
 		w.Write([]byte(`<?xml version="1.0"?>
@@ -232,8 +233,8 @@ func TestIntegration_ConditionalGET(t *testing.T) {
 
 	tmpDir := t.TempDir()
 	cache := cache.New(tmpDir)
-	fetcher := fetcher.NewSequential(20, cache)
-	
+	fetcher := fetcher.NewSequential(20, cache, false)
+
 	feeds := []config.FeedConfig{{URL: server.URL, Name: "Test"}}
 
 	// First fetch
@@ -297,8 +298,8 @@ func TestIntegration_MultipleFeeds(t *testing.T) {
 
 	tmpDir := t.TempDir()
 	cache := cache.New(tmpDir)
-	fetcher := fetcher.NewSequential(20, cache)
-	
+	fetcher := fetcher.NewSequential(20, cache, false)
+
 	feeds := []config.FeedConfig{
 		{URL: server1.URL, Name: "Feed 1"},
 		{URL: server2.URL, Name: "Feed 2"},
@@ -306,11 +307,11 @@ func TestIntegration_MultipleFeeds(t *testing.T) {
 
 	// Fetch both feeds
 	results := fetcher.FetchFeeds(context.Background(), feeds)
-	
+
 	if len(results) != 2 {
 		t.Fatalf("expected 2 results, got %d", len(results))
 	}
-	
+
 	for i, result := range results {
 		if result.Error != nil {
 			t.Errorf("feed %d failed: %v", i, result.Error)
@@ -325,9 +326,8 @@ func TestIntegration_MultipleFeeds(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to load entries: %v", err)
 	}
-	
+
 	if len(entries) != 2 {
 		t.Fatalf("expected 2 total entries, got %d", len(entries))
 	}
 }
-

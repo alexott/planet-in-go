@@ -101,6 +101,10 @@ func Load(path string) (*Config, error) {
 func parsePlanetSection(iniFile *ini.File, config *Config) error {
 	section := iniFile.Section("Planet")
 
+	// Read raw strftime-style formats from config and convert to Go layouts
+	rawDate := section.Key("date_format").MustString("%B %d, %Y %I:%M %p")
+	rawNewDate := section.Key("new_date_format").MustString("%B %d, %Y")
+
 	config.Planet = PlanetConfig{
 		Name:                section.Key("name").String(),
 		Link:                section.Key("link").String(),
@@ -113,8 +117,8 @@ func parsePlanetSection(iniFile *ini.File, config *Config) error {
 		NewFeedItems:        section.Key("new_feed_items").MustInt(10),
 		ItemsPerPage:        section.Key("items_per_page").MustInt(15),
 		DaysPerPage:         section.Key("days_per_page").MustInt(0),
-		DateFormat:          section.Key("date_format").MustString("%B %d, %Y %I:%M %p"),
-		NewDateFormat:       section.Key("new_date_format").MustString("%B %d, %Y"),
+		DateFormat:          strftimeToGoLayout(rawDate),
+		NewDateFormat:       strftimeToGoLayout(rawNewDate),
 		Encoding:            section.Key("encoding").MustString("utf-8"),
 		Filter:              section.Key("filter").String(),
 		Exclude:             section.Key("exclude").String(),
