@@ -52,6 +52,22 @@ func (f *FeedConfig) TwitterHandle() string {
 	return ""
 }
 
+// Filter returns the feed-level filter pattern, or empty string if not set
+func (f *FeedConfig) Filter() string {
+	if filter, ok := f.Extra["filter"]; ok {
+		return filter
+	}
+	return ""
+}
+
+// Exclude returns the feed-level exclude pattern, or empty string if not set
+func (f *FeedConfig) Exclude() string {
+	if exclude, ok := f.Extra["exclude"]; ok {
+		return exclude
+	}
+	return ""
+}
+
 // TemplateConfig holds per-template settings
 type TemplateConfig struct {
 	DaysPerPage int

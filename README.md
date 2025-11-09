@@ -214,6 +214,7 @@ Performance will improve significantly with concurrent fetching (planned for fut
 ## Documentation
 
 - **[Quick Start Guide](QUICKSTART.md)** - Get up and running in 5 minutes
+- **[Filtering Guide](FILTERING.md)** - Per-feed and global filtering
 - **[Migration Guide](docs/MIGRATION.md)** - Migrate from Venus/Planet
 - **[Twitter Integration](TWITTER_INTEGRATION.md)** - Automatically post to Twitter
 - **[Template Examples](examples/)** - Example templates for various formats

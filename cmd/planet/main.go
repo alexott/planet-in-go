@@ -276,19 +276,18 @@ func runFetchAndRender(configPath string, debugMode bool) error {
 		"count", len(entries),
 		"duration", loadDuration)
 
-	// Apply filters
-	slog.Debug("creating filter",
-		"include_pattern", cfg.Planet.Filter,
-		"exclude_pattern", cfg.Planet.Exclude)
+	// Apply per-feed filters
+	slog.Debug("applying per-feed filters",
+		"total_entries", len(entries),
+		"global_include", cfg.Planet.Filter,
+		"global_exclude", cfg.Planet.Exclude,
+		"feeds_count", len(cfg.Feeds))
 
-	filter, err := filter.New(cfg.Planet.Filter, cfg.Planet.Exclude)
-	if err != nil {
-		return fmt.Errorf("create filter: %w", err)
-	}
-
-	slog.Debug("applying filters")
 	filterStart := time.Now()
-	filtered := filter.Apply(entries)
+	filtered, err := filter.ApplyPerFeed(entries, cfg.Feeds, cfg.Planet.Filter, cfg.Planet.Exclude)
+	if err != nil {
+		return fmt.Errorf("apply filters: %w", err)
+	}
 	filterDuration := time.Since(filterStart)
 
 	if len(filtered) != len(entries) {
@@ -487,19 +486,18 @@ func runRender(configPath string, debugMode bool) error {
 		"count", len(entries),
 		"duration", loadDuration)
 
-	// Apply filters
-	slog.Debug("creating filter",
-		"include_pattern", cfg.Planet.Filter,
-		"exclude_pattern", cfg.Planet.Exclude)
+	// Apply per-feed filters
+	slog.Debug("applying per-feed filters",
+		"total_entries", len(entries),
+		"global_include", cfg.Planet.Filter,
+		"global_exclude", cfg.Planet.Exclude,
+		"feeds_count", len(cfg.Feeds))
 
-	filter, err := filter.New(cfg.Planet.Filter, cfg.Planet.Exclude)
-	if err != nil {
-		return fmt.Errorf("create filter: %w", err)
-	}
-
-	slog.Debug("applying filters")
 	filterStart := time.Now()
-	filtered := filter.Apply(entries)
+	filtered, err := filter.ApplyPerFeed(entries, cfg.Feeds, cfg.Planet.Filter, cfg.Planet.Exclude)
+	if err != nil {
+		return fmt.Errorf("apply filters: %w", err)
+	}
 	filterDuration := time.Since(filterStart)
 
 	if len(filtered) != len(entries) {
@@ -616,19 +614,18 @@ func runPost(configPath string, debugMode bool) error {
 		"count", len(entries),
 		"duration", loadDuration)
 
-	// Apply filters
-	slog.Debug("creating filter",
-		"include_pattern", cfg.Planet.Filter,
-		"exclude_pattern", cfg.Planet.Exclude)
+	// Apply per-feed filters
+	slog.Debug("applying per-feed filters",
+		"total_entries", len(entries),
+		"global_include", cfg.Planet.Filter,
+		"global_exclude", cfg.Planet.Exclude,
+		"feeds_count", len(cfg.Feeds))
 
-	filter, err := filter.New(cfg.Planet.Filter, cfg.Planet.Exclude)
-	if err != nil {
-		return fmt.Errorf("create filter: %w", err)
-	}
-
-	slog.Debug("applying filters")
 	filterStart := time.Now()
-	filtered := filter.Apply(entries)
+	filtered, err := filter.ApplyPerFeed(entries, cfg.Feeds, cfg.Planet.Filter, cfg.Planet.Exclude)
+	if err != nil {
+		return fmt.Errorf("apply filters: %w", err)
+	}
 	filterDuration := time.Since(filterStart)
 
 	if len(filtered) != len(entries) {
