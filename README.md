@@ -45,9 +45,10 @@ go install github.com/alexey-ott/planet-go/cmd/planet@latest
 ./planet -c path/to/config.ini
 
 # Explicit subcommands
-./planet run -c config.ini           # Fetch feeds and render templates (default)
+./planet run -c config.ini           # Fetch, render, and post (all-in-one)
 ./planet fetch -c config.ini         # Only fetch and cache feeds
 ./planet render -c config.ini        # Only render templates from cache
+./planet post -c config.ini          # Only post to Twitter from cache
 
 # Other commands
 ./planet version                     # Show version information
@@ -56,6 +57,7 @@ go install github.com/alexey-ott/planet-go/cmd/planet@latest
 # Enable debug logging (shows detailed timing and connection info)
 ./planet run -c config.ini -debug
 ./planet fetch -c config.ini -debug
+./planet post -c config.ini -debug
 ```
 
 ### Workflow Examples
@@ -70,8 +72,16 @@ go install github.com/alexey-ott/planet-go/cmd/planet@latest
 # ... edit templates ...
 ./planet render -c config.ini        # Re-render with updated template
 
+# Twitter posting workflow
+./planet run -c config.ini           # Fetch + render + post (all-in-one)
+./planet fetch -c config.ini         # Fetch only (no render, no post)
+./planet post -c config.ini          # Post only (from cache)
+
 # Debug a slow feed
 ./planet fetch -c config.ini -debug  # Shows timing for each feed
+
+# Test Twitter posting
+./planet post -c config.ini -debug   # Shows what would be posted
 ```
 
 ## Configuration

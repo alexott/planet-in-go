@@ -362,10 +362,21 @@ name = Example Blog
 twitter = authorhandle
 ```
 
-That's it! New articles will be automatically posted when you run `planet run` or `planet fetch`.
+That's it! New articles will be posted to Twitter.
+
+**Commands:**
+- `./planet run` - Fetch + render + post (all-in-one)
+- `./planet fetch` - Fetch only (no post)
+- `./planet render` - Render only (no post)
+- `./planet post` - Post only (from cache)
 
 **First run:** Posts the 10 most recent articles  
 **Subsequent runs:** Posts only new articles
+
+**Testing:**
+```bash
+./planet post -c config.ini -debug
+```
 
 For complete documentation, see **[TWITTER_INTEGRATION.md](TWITTER_INTEGRATION.md)**.
 

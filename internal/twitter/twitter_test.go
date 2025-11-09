@@ -35,7 +35,7 @@ func TestFormatTweet(t *testing.T) {
 				Title: "Opening wave 2022-06-16",
 				Link:  "https://fpsd.codes/opening-wave-2022-06-16.html",
 			},
-			twitterHandle: "@focaskater",
+			twitterHandle: "focaskater",
 			wantContains: []string{
 				"Opening wave 2022-06-16",
 				"(by @focaskater)",
@@ -49,7 +49,7 @@ func TestFormatTweet(t *testing.T) {
 				Title: "This is an extremely long article title that should be truncated because it exceeds the maximum allowed length for a tweet when combined with the attribution and the link URL that we need to include in the final tweet text",
 				Link:  "https://example.com/very-long-url-path-that-will-be-counted-as-23-chars",
 			},
-			twitterHandle: "@somehandle",
+			twitterHandle: "somehandle",
 			wantContains: []string{
 				"...",
 				"(by @somehandle)",
@@ -166,10 +166,10 @@ func TestTwitterHandleExtraction(t *testing.T) {
 				URL:  "https://example.com/feed.xml",
 				Name: "Example Feed",
 				Extra: map[string]string{
-					"twitter": "@example",
+					"twitter": "example",
 				},
 			},
-			want: "@example",
+			want: "example",
 		},
 		{
 			name: "feed without twitter handle",
