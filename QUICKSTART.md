@@ -359,7 +359,7 @@ export TWITTER_ACCESS_TOKEN_SECRET="your-access-token-secret"
 ```ini
 [https://blog.example.com/feed.xml]
 name = Example Blog
-twitter = @authorhandle
+twitter = authorhandle
 ```
 
 That's it! New articles will be automatically posted when you run `planet run` or `planet fetch`.

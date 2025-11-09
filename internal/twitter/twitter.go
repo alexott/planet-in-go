@@ -59,11 +59,9 @@ func NewPoster(trackingFile string) (*Poster, error) {
 		AuthenticationMethod: gotwi.AuthenMethodOAuth1UserContext,
 		OAuthToken:           accessToken,
 		OAuthTokenSecret:     accessTokenSecret,
+		APIKey:               apiKey,
+		APIKeySecret:         apiKeySecret,
 	}
-
-	// Set API keys as environment variables for gotwi
-	os.Setenv("GOTWI_API_KEY", apiKey)
-	os.Setenv("GOTWI_API_KEY_SECRET", apiKeySecret)
 
 	client, err := gotwi.NewClient(in)
 	if err != nil {
@@ -142,24 +140,24 @@ func (p *Poster) isPosted(entryID string, tracking *TrackingData) bool {
 func formatTweet(entry cache.Entry, twitterHandle string) string {
 	// Start with the title
 	title := entry.Title
-	
+
 	// Build attribution
 	attribution := ""
 	if twitterHandle != "" {
-		attribution = fmt.Sprintf(" (by %s)", twitterHandle)
+		attribution = fmt.Sprintf(" (by @%s)", twitterHandle)
 	}
-	
+
 	// Add link
 	link := entry.Link
-	
+
 	// Calculate total length (Twitter counts URLs as 23 chars regardless of actual length)
 	urlLength := 23
 	// Format is: "title + attribution + \n\n + url"
 	totalLength := len(title) + len(attribution) + 2 + urlLength // +2 for double newline
-	
+
 	// Twitter limit is 280, but we want to keep it under 240 for safety and readability
 	maxLength := 240
-	
+
 	// If too long, shorten the title
 	if totalLength > maxLength {
 		// Calculate how much space we have for the title
@@ -169,13 +167,13 @@ func formatTweet(entry cache.Entry, twitterHandle string) string {
 			attribution = ""
 			availableForTitle = maxLength - urlLength - 2
 		}
-		
+
 		if len(title) > availableForTitle {
 			// Truncate title and add ellipsis
 			title = title[:availableForTitle-3] + "..."
 		}
 	}
-	
+
 	// Format the tweet
 	if attribution != "" {
 		return fmt.Sprintf("%s%s\n\n%s", title, attribution, link)
@@ -320,4 +318,3 @@ func (p *Poster) postTweet(text string) (string, error) {
 
 	return *res.Data.ID, nil
 }
-
