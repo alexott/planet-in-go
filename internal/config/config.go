@@ -16,23 +16,25 @@ type Config struct {
 
 // PlanetConfig holds global planet settings
 type PlanetConfig struct {
-	Name           string
-	Link           string
-	OwnerName      string
-	OwnerEmail     string
-	CacheDirectory string
-	OutputDir      string
-	LogLevel       string
-	FeedTimeout    int
-	NewFeedItems   int
-	ItemsPerPage   int
-	DaysPerPage    int
-	DateFormat     string
-	NewDateFormat  string
-	Encoding       string
-	TemplateFiles  []string
-	Filter         string
-	Exclude        string
+	Name                string
+	Link                string
+	OwnerName           string
+	OwnerEmail          string
+	CacheDirectory      string
+	OutputDir           string
+	LogLevel            string
+	FeedTimeout         int
+	NewFeedItems        int
+	ItemsPerPage        int
+	DaysPerPage         int
+	DateFormat          string
+	NewDateFormat       string
+	Encoding            string
+	TemplateFiles       []string
+	Filter              string
+	Exclude             string
+	PostToTwitter       bool
+	TwitterTrackingFile string
 }
 
 // FeedConfig represents a single feed subscription
@@ -40,6 +42,14 @@ type FeedConfig struct {
 	URL   string
 	Name  string
 	Extra map[string]string
+}
+
+// TwitterHandle returns the Twitter handle for attribution, or empty string if not set
+func (f *FeedConfig) TwitterHandle() string {
+	if handle, ok := f.Extra["twitter"]; ok {
+		return handle
+	}
+	return ""
 }
 
 // TemplateConfig holds per-template settings
@@ -76,22 +86,24 @@ func parsePlanetSection(iniFile *ini.File, config *Config) error {
 	section := iniFile.Section("Planet")
 
 	config.Planet = PlanetConfig{
-		Name:           section.Key("name").String(),
-		Link:           section.Key("link").String(),
-		OwnerName:      section.Key("owner_name").String(),
-		OwnerEmail:     section.Key("owner_email").String(),
-		CacheDirectory: section.Key("cache_directory").String(),
-		OutputDir:      section.Key("output_dir").String(),
-		LogLevel:       section.Key("log_level").MustString("INFO"),
-		FeedTimeout:    section.Key("feed_timeout").MustInt(20),
-		NewFeedItems:   section.Key("new_feed_items").MustInt(10),
-		ItemsPerPage:   section.Key("items_per_page").MustInt(15),
-		DaysPerPage:    section.Key("days_per_page").MustInt(0),
-		DateFormat:     section.Key("date_format").MustString("%B %d, %Y %I:%M %p"),
-		NewDateFormat:  section.Key("new_date_format").MustString("%B %d, %Y"),
-		Encoding:       section.Key("encoding").MustString("utf-8"),
-		Filter:         section.Key("filter").String(),
-		Exclude:        section.Key("exclude").String(),
+		Name:                section.Key("name").String(),
+		Link:                section.Key("link").String(),
+		OwnerName:           section.Key("owner_name").String(),
+		OwnerEmail:          section.Key("owner_email").String(),
+		CacheDirectory:      section.Key("cache_directory").String(),
+		OutputDir:           section.Key("output_dir").String(),
+		LogLevel:            section.Key("log_level").MustString("INFO"),
+		FeedTimeout:         section.Key("feed_timeout").MustInt(20),
+		NewFeedItems:        section.Key("new_feed_items").MustInt(10),
+		ItemsPerPage:        section.Key("items_per_page").MustInt(15),
+		DaysPerPage:         section.Key("days_per_page").MustInt(0),
+		DateFormat:          section.Key("date_format").MustString("%B %d, %Y %I:%M %p"),
+		NewDateFormat:       section.Key("new_date_format").MustString("%B %d, %Y"),
+		Encoding:            section.Key("encoding").MustString("utf-8"),
+		Filter:              section.Key("filter").String(),
+		Exclude:             section.Key("exclude").String(),
+		PostToTwitter:       section.Key("post_to_twitter").MustBool(false),
+		TwitterTrackingFile: section.Key("twitter_tracking_file").MustString("twitter_posted.json"),
 	}
 
 	// Parse template_files (space-separated)

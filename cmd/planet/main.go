@@ -15,6 +15,7 @@ import (
 	"github.com/alexey-ott/planet-go/internal/fetcher"
 	"github.com/alexey-ott/planet-go/internal/filter"
 	"github.com/alexey-ott/planet-go/internal/renderer"
+	"github.com/alexey-ott/planet-go/internal/twitter"
 )
 
 const version = "0.1.0"
@@ -344,6 +345,17 @@ func runFetchAndRender(configPath string, debugMode bool) error {
 		"fetch_duration", fetchDuration,
 		"render_duration", renderDuration)
 	
+	// Post to Twitter if enabled
+	if cfg.Planet.PostToTwitter {
+		slog.Info("Twitter posting enabled, posting new articles")
+		if err := postToTwitter(cfg, filtered); err != nil {
+			// Log error but don't fail the entire command
+			slog.Error("Twitter posting failed", "error", err)
+		}
+	} else {
+		slog.Debug("Twitter posting disabled in configuration")
+	}
+	
 	return nil
 }
 
@@ -427,6 +439,33 @@ func runFetch(configPath string, debugMode bool) error {
 		"cached", cachedCount,
 		"errors", errorCount,
 		"duration", fetchDuration)
+
+	// Post to Twitter if enabled
+	if cfg.Planet.PostToTwitter {
+		slog.Info("Twitter posting enabled, posting new articles")
+		
+		// Load all entries and apply filters (reuse existing cache instance)
+		entries, err := cache.LoadAll()
+		if err != nil {
+			slog.Error("Failed to load entries for Twitter posting", "error", err)
+			return nil
+		}
+		
+		entryFilter, err := filter.New(cfg.Planet.Filter, cfg.Planet.Exclude)
+		if err != nil {
+			slog.Error("Failed to create filter for Twitter posting", "error", err)
+			return nil
+		}
+		
+		filtered := entryFilter.Apply(entries)
+		
+		if err := postToTwitter(cfg, filtered); err != nil {
+			// Log error but don't fail the entire command
+			slog.Error("Twitter posting failed", "error", err)
+		}
+	} else {
+		slog.Debug("Twitter posting disabled in configuration")
+	}
 
 	return nil
 }
@@ -557,4 +596,28 @@ func parseLogLevel(level string) slog.Level {
 	default:
 		return slog.LevelInfo
 	}
+}
+
+// postToTwitter posts new articles to Twitter
+func postToTwitter(cfg *config.Config, entries []cache.Entry) error {
+	// Get tracking file path (resolve relative to cache directory if needed)
+	trackingFile := cfg.Planet.TwitterTrackingFile
+	if !filepath.IsAbs(trackingFile) {
+		trackingFile = filepath.Join(cfg.Planet.CacheDirectory, trackingFile)
+	}
+	
+	slog.Info("Initializing Twitter poster", "tracking_file", trackingFile)
+	
+	poster, err := twitter.NewPoster(trackingFile)
+	if err != nil {
+		return fmt.Errorf("create Twitter poster: %w", err)
+	}
+	
+	// Post new articles (max 10 on first run)
+	maxInitial := 10
+	if err := poster.PostNewArticles(entries, cfg.Feeds, maxInitial); err != nil {
+		return fmt.Errorf("post to Twitter: %w", err)
+	}
+	
+	return nil
 }

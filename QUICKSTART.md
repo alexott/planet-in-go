@@ -331,11 +331,48 @@ Planet Go will use cached data if available.
 - **Add more feeds:** Just add `[URL]` sections to your config
 - **Customize templates:** Copy from `examples/` and modify
 - **Filter content:** Use `filter` and `exclude` patterns
+- **Twitter integration:** Automatically post new articles (see below)
 - **Deploy:** Set up cron/systemd for automatic updates
+
+## Twitter Integration (Optional)
+
+Want to automatically post new articles to Twitter? Planet Go has you covered!
+
+### Quick Setup
+
+1. **Enable in config:**
+```ini
+[Planet]
+post_to_twitter = true
+twitter_tracking_file = twitter_posted.json
+```
+
+2. **Set environment variables:**
+```bash
+export TWITTER_API_KEY="your-api-key"
+export TWITTER_API_KEY_SECRET="your-api-key-secret"
+export TWITTER_ACCESS_TOKEN="your-access-token"
+export TWITTER_ACCESS_TOKEN_SECRET="your-access-token-secret"
+```
+
+3. **Add author handles (optional):**
+```ini
+[https://blog.example.com/feed.xml]
+name = Example Blog
+twitter = @authorhandle
+```
+
+That's it! New articles will be automatically posted when you run `planet run` or `planet fetch`.
+
+**First run:** Posts the 10 most recent articles  
+**Subsequent runs:** Posts only new articles
+
+For complete documentation, see **[TWITTER_INTEGRATION.md](TWITTER_INTEGRATION.md)**.
 
 ## Resources
 
 - **Full Documentation:** [README.md](README.md)
+- **Twitter Integration:** [TWITTER_INTEGRATION.md](TWITTER_INTEGRATION.md)
 - **Migration Guide:** [docs/MIGRATION.md](docs/MIGRATION.md)
 - **Example Templates:** [examples/](examples/)
 - **Design Document:** [docs/plans/2025-01-08-planet-go-design.md](docs/plans/2025-01-08-planet-go-design.md)

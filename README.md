@@ -12,6 +12,7 @@ Originally designed for Planet Clojure, replacing the unmaintained Python 2.x Ve
 - **Fast RSS/Atom feed fetching** with HTTP conditional GET caching
 - **Flexible template rendering** with Go's html/template
 - **Regex-based content filtering** (include/exclude patterns)
+- **Twitter integration** - automatically post new articles to Twitter
 - **Graceful error handling** - continues on individual feed failures
 - **Single binary deployment** - no dependencies to install
 - **Structured logging** with customizable log levels
@@ -200,6 +201,13 @@ Typical performance on modern hardware:
 
 Performance will improve significantly with concurrent fetching (planned for future release).
 
+## Documentation
+
+- **[Quick Start Guide](QUICKSTART.md)** - Get up and running in 5 minutes
+- **[Migration Guide](docs/MIGRATION.md)** - Migrate from Venus/Planet
+- **[Twitter Integration](TWITTER_INTEGRATION.md)** - Automatically post to Twitter
+- **[Template Examples](examples/)** - Example templates for various formats
+
 ## Migration from Venus/Planet
 
 See `docs/MIGRATION.md` for step-by-step migration guide.
@@ -208,7 +216,7 @@ See `docs/MIGRATION.md` for step-by-step migration guide.
 1. Templates must be converted to Go template syntax
 2. Only basic regex filtering supported (no complex plugins)
 3. Single template engine (Go templates only)
-4. No Twitter integration or PubSubHubbub support in MVP
+4. Twitter integration now available (optional)
 
 ## Troubleshooting
 
@@ -259,6 +267,7 @@ Based on the Venus/Planet feed aggregator. Reimplemented in Go by Alexey Ott.
 **Dependencies:**
 - [go-ini/ini](https://github.com/go-ini/ini) - INI parsing
 - [mmcdole/gofeed](https://github.com/mmcdole/gofeed) - RSS/Atom parsing
+- [michimani/gotwi](https://github.com/michimani/gotwi) - Twitter API v2
 
 ## Roadmap
 
@@ -267,15 +276,18 @@ Based on the Venus/Planet feed aggregator. Reimplemented in Go by Alexey Ott.
 - ✅ File-based caching
 - ✅ Go template rendering
 - ✅ Basic regex filtering
+- ✅ Twitter integration
 
 **v0.2.0 (Planned)**
 - Concurrent feed fetching
-- Rate limiting
+- Rate limiting per feed
 - Improved error recovery
 - Metrics/monitoring
+- Twitter threads for multiple articles
 
 **Future**
 - Additional template engines
-- Advanced filtering
+- Advanced filtering options
 - Web-based admin interface
 - PubSubHubbub support
+- Media attachments for Twitter
