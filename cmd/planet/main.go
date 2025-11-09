@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -176,41 +177,22 @@ func loadConfig(configPath string, debugMode bool) (*config.Config, error) {
 	return cfg, nil
 }
 
-// runFetchAndRender implements the "run" command - fetch and render
-func runFetchAndRender(configPath string, debugMode bool) error {
-	cfg, err := loadConfig(configPath, debugMode)
-	if err != nil {
-		return err
-	}
-
-	slog.Info("starting planet (run: fetch + render)",
-		"version", version,
-		"feeds", len(cfg.Feeds))
-
-	// Ensure directories exist
-	slog.Debug("creating directories",
-		"cache_dir", cfg.Planet.CacheDirectory,
-		"output_dir", cfg.Planet.OutputDir)
-
+// fetchFeeds fetches all feeds and returns timing info
+func fetchFeeds(cfg *config.Config) (successCount, cachedCount, errorCount int, duration time.Duration, err error) {
+	// Ensure cache directory exists
 	if err := os.MkdirAll(cfg.Planet.CacheDirectory, 0755); err != nil {
-		return fmt.Errorf("create cache directory: %w", err)
-	}
-	if err := os.MkdirAll(cfg.Planet.OutputDir, 0755); err != nil {
-		return fmt.Errorf("create output directory: %w", err)
+		return 0, 0, 0, 0, fmt.Errorf("create cache directory: %w", err)
 	}
 
 	// Initialize components
-	slog.Debug("initializing components",
+	slog.Debug("initializing fetcher",
 		"cache_dir", cfg.Planet.CacheDirectory,
 		"timeout", cfg.Planet.FeedTimeout)
 
-	cache := cache.New(cfg.Planet.CacheDirectory)
-	fetcher := fetcher.NewSequential(cfg.Planet.FeedTimeout, cache)
+	cacheInstance := cache.New(cfg.Planet.CacheDirectory)
+	fetcherInstance := fetcher.NewSequential(cfg.Planet.FeedTimeout, cacheInstance)
 
-	// Fetch feeds
-	slog.Info("fetching feeds", "count", len(cfg.Feeds))
-
-	// Show first few feeds at INFO level so user can verify correct config
+	// Log first few feeds at INFO level
 	feedsToShow := 3
 	if len(cfg.Feeds) < feedsToShow {
 		feedsToShow = len(cfg.Feeds)
@@ -234,13 +216,14 @@ func runFetchAndRender(configPath string, debugMode bool) error {
 			"name", feed.Name)
 	}
 
+	// Fetch feeds
+	slog.Info("fetching feeds", "count", len(cfg.Feeds))
 	ctx := context.Background()
 	fetchStart := time.Now()
-	results := fetcher.FetchFeeds(ctx, cfg.Feeds)
-	fetchDuration := time.Since(fetchStart)
+	results := fetcherInstance.FetchFeeds(ctx, cfg.Feeds)
+	duration = time.Since(fetchStart)
 
-	// Log results
-	var successCount, errorCount, cachedCount int
+	// Process results
 	for _, result := range results {
 		if result.Error != nil {
 			errorCount++
@@ -260,16 +243,28 @@ func runFetchAndRender(configPath string, debugMode bool) error {
 		"success", successCount,
 		"cached", cachedCount,
 		"errors", errorCount,
-		"duration", fetchDuration)
+		"duration", duration)
+
+	return successCount, cachedCount, errorCount, duration, nil
+}
+
+// loadAndFilterEntries loads all cached entries and applies per-feed filters
+func loadAndFilterEntries(cfg *config.Config) ([]cache.Entry, error) {
+	cacheInstance := cache.New(cfg.Planet.CacheDirectory)
 
 	// Load all cached entries
 	slog.Debug("loading all cached entries")
 	loadStart := time.Now()
-	entries, err := cache.LoadAll()
+	entries, err := cacheInstance.LoadAll()
 	loadDuration := time.Since(loadStart)
 
 	if err != nil {
-		return fmt.Errorf("load cached entries: %w", err)
+		return nil, fmt.Errorf("load cached entries: %w", err)
+	}
+
+	if len(entries) == 0 {
+		slog.Warn("no cached entries found")
+		return entries, nil
 	}
 
 	slog.Info("loaded entries",
@@ -286,7 +281,7 @@ func runFetchAndRender(configPath string, debugMode bool) error {
 	filterStart := time.Now()
 	filtered, err := filter.ApplyPerFeed(entries, cfg.Feeds, cfg.Planet.Filter, cfg.Planet.Exclude)
 	if err != nil {
-		return fmt.Errorf("apply filters: %w", err)
+		return nil, fmt.Errorf("apply filters: %w", err)
 	}
 	filterDuration := time.Since(filterStart)
 
@@ -302,8 +297,47 @@ func runFetchAndRender(configPath string, debugMode bool) error {
 			"duration", filterDuration)
 	}
 
-	// Render templates
-	renderer := renderer.New(cfg.Planet.OutputDir)
+	return filtered, nil
+}
+
+// limitEntries returns the most recent N entries, sorted by date (newest first)
+// If maxEntries is 0 or negative, all entries are returned
+func limitEntries(entries []cache.Entry, maxEntries int) []cache.Entry {
+	if maxEntries <= 0 || len(entries) <= maxEntries {
+		return sortEntriesByDate(entries)
+	}
+
+	sorted := sortEntriesByDate(entries)
+	limited := sorted[:maxEntries]
+
+	slog.Debug("limited entries",
+		"before", len(entries),
+		"after", len(limited),
+		"max", maxEntries)
+
+	return limited
+}
+
+// sortEntriesByDate sorts entries by date, newest first
+func sortEntriesByDate(entries []cache.Entry) []cache.Entry {
+	sorted := make([]cache.Entry, len(entries))
+	copy(sorted, entries)
+
+	sort.Slice(sorted, func(i, j int) bool {
+		return sorted[i].Date.After(sorted[j].Date)
+	})
+
+	return sorted
+}
+
+// renderTemplates renders all configured templates
+func renderTemplates(cfg *config.Config, entries []cache.Entry, configPath string) (int, error) {
+	// Ensure output directory exists
+	if err := os.MkdirAll(cfg.Planet.OutputDir, 0755); err != nil {
+		return 0, fmt.Errorf("create output directory: %w", err)
+	}
+
+	rendererInstance := renderer.New(cfg.Planet.OutputDir)
 
 	slog.Info("rendering templates", "count", len(cfg.Planet.TemplateFiles))
 
@@ -313,6 +347,7 @@ func runFetchAndRender(configPath string, debugMode bool) error {
 
 	renderStart := time.Now()
 	successTemplates := 0
+
 	for i, tmplFile := range cfg.Planet.TemplateFiles {
 		// Resolve template path relative to config file
 		tmplPath := tmplFile
@@ -326,7 +361,7 @@ func runFetchAndRender(configPath string, debugMode bool) error {
 			"path", tmplPath)
 
 		tmplStart := time.Now()
-		if err := renderer.Render(tmplPath, filtered, cfg); err != nil {
+		if err := rendererInstance.Render(tmplPath, entries, cfg); err != nil {
 			slog.Error("template failed",
 				"file", tmplFile,
 				"error", err,
@@ -340,13 +375,41 @@ func runFetchAndRender(configPath string, debugMode bool) error {
 	}
 	renderDuration := time.Since(renderStart)
 
-	totalDuration := time.Since(fetchStart)
+	slog.Info("render complete",
+		"entries", len(entries),
+		"templates", successTemplates,
+		"duration", renderDuration)
+
+	return successTemplates, nil
+}
+
+// runFetchAndRender implements the "run" command - fetch and render
+func runFetchAndRender(configPath string, debugMode bool) error {
+	startTime := time.Now()
+	cfg, err := loadConfig(configPath, debugMode)
+	if err != nil {
+		return err
+	}
+
+	slog.Info("starting planet (run: fetch + render + post)",
+		"version", version,
+		"feeds", len(cfg.Feeds))
+
+	// Run fetch
+	if err := doFetch(cfg); err != nil {
+		return err
+	}
+
+	// Run render
+	filtered, err := doRender(cfg, configPath)
+	if err != nil {
+		return err
+	}
+
+	totalDuration := time.Since(startTime)
 	slog.Info("planet run complete",
 		"entries", len(filtered),
-		"templates", successTemplates,
-		"total_duration", totalDuration,
-		"fetch_duration", fetchDuration,
-		"render_duration", renderDuration)
+		"total_duration", totalDuration)
 
 	// Post to Twitter if enabled
 	if cfg.Planet.PostToTwitter {
@@ -362,6 +425,21 @@ func runFetchAndRender(configPath string, debugMode bool) error {
 	return nil
 }
 
+// doFetch performs the fetch operation (internal, used by commands)
+func doFetch(cfg *config.Config) error {
+	successCount, cachedCount, errorCount, _, err := fetchFeeds(cfg)
+	if err != nil {
+		return fmt.Errorf("fetch feeds: %w", err)
+	}
+
+	slog.Info("fetch command complete",
+		"success", successCount,
+		"cached", cachedCount,
+		"errors", errorCount)
+
+	return nil
+}
+
 // runFetch implements the "fetch" command - fetch feeds and update cache only
 func runFetch(configPath string, debugMode bool) error {
 	cfg, err := loadConfig(configPath, debugMode)
@@ -373,77 +451,34 @@ func runFetch(configPath string, debugMode bool) error {
 		"version", version,
 		"feeds", len(cfg.Feeds))
 
-	// Ensure cache directory exists
-	slog.Debug("creating cache directory", "cache_dir", cfg.Planet.CacheDirectory)
+	return doFetch(cfg)
+}
 
-	if err := os.MkdirAll(cfg.Planet.CacheDirectory, 0755); err != nil {
-		return fmt.Errorf("create cache directory: %w", err)
+// doRender performs the render operation (internal, used by commands)
+// Returns the filtered entries for use by calling code (e.g., Twitter posting)
+func doRender(cfg *config.Config, configPath string) ([]cache.Entry, error) {
+	// Load and filter entries
+	filtered, err := loadAndFilterEntries(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("load and filter entries: %w", err)
 	}
 
-	// Initialize components
-	slog.Debug("initializing components",
-		"cache_dir", cfg.Planet.CacheDirectory,
-		"timeout", cfg.Planet.FeedTimeout)
-
-	cache := cache.New(cfg.Planet.CacheDirectory)
-	fetcher := fetcher.NewSequential(cfg.Planet.FeedTimeout, cache)
-
-	// Fetch feeds
-	slog.Info("fetching feeds", "count", len(cfg.Feeds))
-
-	// Show first few feeds at INFO level
-	feedsToShow := 3
-	if len(cfg.Feeds) < feedsToShow {
-		feedsToShow = len(cfg.Feeds)
-	}
-	for i := 0; i < feedsToShow; i++ {
-		feed := cfg.Feeds[i]
-		slog.Info("feed",
-			"index", i+1,
-			"url", feed.URL,
-			"name", feed.Name)
-	}
-	if len(cfg.Feeds) > feedsToShow {
-		slog.Info("... and more feeds", "total", len(cfg.Feeds))
+	if len(filtered) == 0 {
+		slog.Warn("no cached entries found - run 'planet fetch' first")
+		return filtered, nil
 	}
 
-	// Log all feeds in debug mode
-	for i, feed := range cfg.Feeds {
-		slog.Debug("feed configuration",
-			"index", i+1,
-			"url", feed.URL,
-			"name", feed.Name)
+	// Render templates
+	successTemplates, err := renderTemplates(cfg, filtered, configPath)
+	if err != nil {
+		return nil, fmt.Errorf("render templates: %w", err)
 	}
 
-	ctx := context.Background()
-	fetchStart := time.Now()
-	results := fetcher.FetchFeeds(ctx, cfg.Feeds)
-	fetchDuration := time.Since(fetchStart)
+	slog.Info("render command complete",
+		"entries", len(filtered),
+		"templates", successTemplates)
 
-	// Log results
-	var successCount, errorCount, cachedCount int
-	for _, result := range results {
-		if result.Error != nil {
-			errorCount++
-			slog.Error("feed failed", "url", result.URL, "error", result.Error)
-		} else {
-			successCount++
-			if result.Cached {
-				cachedCount++
-				slog.Debug("feed cached", "url", result.URL, "entries", len(result.Entries))
-			} else {
-				slog.Info("feed fetched", "url", result.URL, "entries", len(result.Entries))
-			}
-		}
-	}
-
-	slog.Info("fetch complete",
-		"success", successCount,
-		"cached", cachedCount,
-		"errors", errorCount,
-		"duration", fetchDuration)
-
-	return nil
+	return filtered, nil
 }
 
 // runRender implements the "render" command - render templates from cache only
@@ -457,105 +492,8 @@ func runRender(configPath string, debugMode bool) error {
 		"version", version,
 		"templates", len(cfg.Planet.TemplateFiles))
 
-	// Ensure output directory exists
-	slog.Debug("creating output directory", "output_dir", cfg.Planet.OutputDir)
-
-	if err := os.MkdirAll(cfg.Planet.OutputDir, 0755); err != nil {
-		return fmt.Errorf("create output directory: %w", err)
-	}
-
-	// Initialize cache
-	cache := cache.New(cfg.Planet.CacheDirectory)
-
-	// Load all cached entries
-	slog.Debug("loading all cached entries")
-	loadStart := time.Now()
-	entries, err := cache.LoadAll()
-	loadDuration := time.Since(loadStart)
-
-	if err != nil {
-		return fmt.Errorf("load cached entries: %w", err)
-	}
-
-	if len(entries) == 0 {
-		slog.Warn("no cached entries found - run 'planet fetch' first")
-		return nil
-	}
-
-	slog.Info("loaded entries",
-		"count", len(entries),
-		"duration", loadDuration)
-
-	// Apply per-feed filters
-	slog.Debug("applying per-feed filters",
-		"total_entries", len(entries),
-		"global_include", cfg.Planet.Filter,
-		"global_exclude", cfg.Planet.Exclude,
-		"feeds_count", len(cfg.Feeds))
-
-	filterStart := time.Now()
-	filtered, err := filter.ApplyPerFeed(entries, cfg.Feeds, cfg.Planet.Filter, cfg.Planet.Exclude)
-	if err != nil {
-		return fmt.Errorf("apply filters: %w", err)
-	}
-	filterDuration := time.Since(filterStart)
-
-	if len(filtered) != len(entries) {
-		slog.Info("filtered entries",
-			"before", len(entries),
-			"after", len(filtered),
-			"removed", len(entries)-len(filtered),
-			"duration", filterDuration)
-	} else {
-		slog.Debug("no entries filtered",
-			"count", len(entries),
-			"duration", filterDuration)
-	}
-
-	// Render templates
-	renderer := renderer.New(cfg.Planet.OutputDir)
-
-	slog.Info("rendering templates", "count", len(cfg.Planet.TemplateFiles))
-
-	// Get config directory for template paths
-	configDir := filepath.Dir(configPath)
-	slog.Debug("config directory", "path", configDir)
-
-	renderStart := time.Now()
-	successTemplates := 0
-	for i, tmplFile := range cfg.Planet.TemplateFiles {
-		// Resolve template path relative to config file
-		tmplPath := tmplFile
-		if !filepath.IsAbs(tmplPath) {
-			tmplPath = filepath.Join(configDir, tmplPath)
-		}
-
-		slog.Debug("rendering template",
-			"index", i+1,
-			"file", tmplFile,
-			"path", tmplPath)
-
-		tmplStart := time.Now()
-		if err := renderer.Render(tmplPath, filtered, cfg); err != nil {
-			slog.Error("template failed",
-				"file", tmplFile,
-				"error", err,
-				"duration", time.Since(tmplStart))
-		} else {
-			successTemplates++
-			slog.Info("template rendered",
-				"file", tmplFile,
-				"duration", time.Since(tmplStart))
-		}
-	}
-	renderDuration := time.Since(renderStart)
-
-	slog.Info("render complete",
-		"entries", len(filtered),
-		"templates", successTemplates,
-		"duration", renderDuration)
-
-	return nil
+	_, err = doRender(cfg, configPath)
+	return err
 }
 
 // postCommand implements the "post" command - post to Twitter from cache only
@@ -591,54 +529,21 @@ func runPost(configPath string, debugMode bool) error {
 		return nil
 	}
 
-	// Initialize cache
-	cache := cache.New(cfg.Planet.CacheDirectory)
-
-	// Load all cached entries
-	slog.Debug("loading all cached entries")
-	loadStart := time.Now()
-	entries, err := cache.LoadAll()
-	loadDuration := time.Since(loadStart)
-
+	// Load and filter entries
+	filtered, err := loadAndFilterEntries(cfg)
 	if err != nil {
-		return fmt.Errorf("load cached entries: %w", err)
+		return fmt.Errorf("load and filter entries: %w", err)
 	}
 
-	if len(entries) == 0 {
+	if len(filtered) == 0 {
 		slog.Warn("no cached entries found - run 'planet fetch' first")
 		fmt.Println("No cached entries found. Run 'planet fetch' first to cache articles.")
 		return nil
 	}
 
-	slog.Info("loaded entries",
-		"count", len(entries),
-		"duration", loadDuration)
-
-	// Apply per-feed filters
-	slog.Debug("applying per-feed filters",
-		"total_entries", len(entries),
-		"global_include", cfg.Planet.Filter,
-		"global_exclude", cfg.Planet.Exclude,
-		"feeds_count", len(cfg.Feeds))
-
-	filterStart := time.Now()
-	filtered, err := filter.ApplyPerFeed(entries, cfg.Feeds, cfg.Planet.Filter, cfg.Planet.Exclude)
-	if err != nil {
-		return fmt.Errorf("apply filters: %w", err)
-	}
-	filterDuration := time.Since(filterStart)
-
-	if len(filtered) != len(entries) {
-		slog.Info("filtered entries",
-			"before", len(entries),
-			"after", len(filtered),
-			"removed", len(entries)-len(filtered),
-			"duration", filterDuration)
-	} else {
-		slog.Debug("no entries filtered",
-			"count", len(entries),
-			"duration", filterDuration)
-	}
+	// Limit to 10 most recent entries for Twitter posting
+	filtered = limitEntries(filtered, 10)
+	slog.Debug("limited entries for Twitter posting", "count", len(filtered), "max", 10)
 
 	// Post to Twitter
 	slog.Info("posting to Twitter", "entries", len(filtered))
@@ -650,7 +555,7 @@ func runPost(configPath string, debugMode bool) error {
 
 	postDuration := time.Since(postStart)
 
-	slog.Info("post complete",
+	slog.Info("post command complete",
 		"entries", len(filtered),
 		"duration", postDuration)
 
