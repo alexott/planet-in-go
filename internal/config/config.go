@@ -35,6 +35,8 @@ type PlanetConfig struct {
 	Exclude             string
 	PostToTwitter       bool
 	TwitterTrackingFile string
+	FetchMode           string // "parallel" or "sequential" (default: "parallel")
+	ParallelWorkers     int    // Number of parallel workers (default: 10)
 }
 
 // FeedConfig represents a single feed subscription
@@ -124,6 +126,8 @@ func parsePlanetSection(iniFile *ini.File, config *Config) error {
 		Exclude:             section.Key("exclude").String(),
 		PostToTwitter:       section.Key("post_to_twitter").MustBool(false),
 		TwitterTrackingFile: section.Key("twitter_tracking_file").MustString("twitter_posted.json"),
+		FetchMode:           section.Key("fetch_mode").MustString("parallel"),
+		ParallelWorkers:     section.Key("parallel_workers").MustInt(10),
 	}
 
 	// Parse template_files (space-separated)

@@ -185,12 +185,23 @@ func fetchFeeds(cfg *config.Config, debugMode bool) (successCount, cachedCount, 
 	}
 
 	// Initialize components
-	slog.Debug("initializing fetcher",
-		"cache_dir", cfg.Planet.CacheDirectory,
-		"timeout", cfg.Planet.FeedTimeout)
-
 	cacheInstance := cache.New(cfg.Planet.CacheDirectory)
-	fetcherInstance := fetcher.NewSequential(cfg.Planet.FeedTimeout, cacheInstance, debugMode)
+
+	// Select fetcher based on configuration
+	var fetcherInstance fetcher.Fetcher
+	if cfg.Planet.FetchMode == "sequential" {
+		slog.Debug("initializing sequential fetcher",
+			"cache_dir", cfg.Planet.CacheDirectory,
+			"timeout", cfg.Planet.FeedTimeout)
+		fetcherInstance = fetcher.NewSequential(cfg.Planet.FeedTimeout, cacheInstance, debugMode)
+	} else {
+		// Default to parallel mode
+		slog.Debug("initializing parallel fetcher",
+			"cache_dir", cfg.Planet.CacheDirectory,
+			"timeout", cfg.Planet.FeedTimeout,
+			"workers", cfg.Planet.ParallelWorkers)
+		fetcherInstance = fetcher.NewParallel(cfg.Planet.FeedTimeout, cacheInstance, debugMode, cfg.Planet.ParallelWorkers)
+	}
 
 	// Log first few feeds at INFO level
 	feedsToShow := 3
