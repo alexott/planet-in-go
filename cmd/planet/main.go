@@ -352,35 +352,25 @@ func renderTemplates(cfg *config.Config, entries []cache.Entry, configPath strin
 
 	slog.Info("rendering templates", "count", len(cfg.Planet.TemplateFiles))
 
-	// Get config directory for template paths
-	configDir := filepath.Dir(configPath)
-	slog.Debug("config directory", "path", configDir)
-
 	renderStart := time.Now()
 	successTemplates := 0
 
-	for i, tmplFile := range cfg.Planet.TemplateFiles {
-		// Resolve template path relative to config file
-		tmplPath := tmplFile
-		if !filepath.IsAbs(tmplPath) {
-			tmplPath = filepath.Join(configDir, tmplPath)
-		}
-
+	for i, tmplPath := range cfg.Planet.TemplateFiles {
+		// Template paths are already resolved to absolute paths by config loading
 		slog.Debug("rendering template",
 			"index", i+1,
-			"file", tmplFile,
 			"path", tmplPath)
 
 		tmplStart := time.Now()
 		if err := rendererInstance.Render(tmplPath, entries, cfg); err != nil {
 			slog.Error("template failed",
-				"file", tmplFile,
+				"path", tmplPath,
 				"error", err,
 				"duration", time.Since(tmplStart))
 		} else {
 			successTemplates++
 			slog.Info("template rendered",
-				"file", tmplFile,
+				"path", tmplPath,
 				"duration", time.Since(tmplStart))
 		}
 	}
