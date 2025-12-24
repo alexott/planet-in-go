@@ -53,9 +53,14 @@ name = Example Feed
 		t.Errorf("OutputDir: expected %s, got %s", expectedOutput, cfg.Planet.OutputDir)
 	}
 	
-	expectedTwitter := filepath.Join(tmpDir, "test", "twitter.json")
+	expectedTwitter := "test/twitter.json"
 	if cfg.Planet.TwitterTrackingFile != expectedTwitter {
 		t.Errorf("TwitterTrackingFile: expected %s, got %s", expectedTwitter, cfg.Planet.TwitterTrackingFile)
+	}
+	
+	// Twitter tracking file should be relative (resolved at runtime to cache dir)
+	if filepath.IsAbs(cfg.Planet.TwitterTrackingFile) {
+		t.Error("TwitterTrackingFile should be relative (will be resolved to cache directory at runtime)")
 	}
 	
 	// Test template files

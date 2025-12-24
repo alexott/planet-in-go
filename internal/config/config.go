@@ -134,9 +134,6 @@ func parsePlanetSection(iniFile *ini.File, config *Config) error {
 	}
 
 	twitterTrackingFile := section.Key("twitter_tracking_file").MustString("twitter_posted.json")
-	if !filepath.IsAbs(twitterTrackingFile) {
-		twitterTrackingFile = filepath.Join(cwd, twitterTrackingFile)
-	}
 
 	config.Planet = PlanetConfig{
 		Name:                section.Key("name").String(),
