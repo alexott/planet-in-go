@@ -3,6 +3,7 @@ package renderer
 import (
 	"fmt"
 	"html/template"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -169,8 +170,17 @@ func (r *Renderer) prepareTemplateData(entries []cache.Entry, cfg *config.Config
 		Channels:   make([]Channel, 0),
 	}
 
-	// Track unique channels
+	// Build channel list from ALL configured feeds (not just those with entries on this page)
+	// This ensures the sidebar shows all subscriptions for visibility
 	channelMap := make(map[string]Channel)
+	for _, feed := range cfg.Feeds {
+		channelMap[feed.Name] = Channel{
+			Name:  feed.Name,
+			Link:  "", // Will be populated from entries if available
+			Title: feed.Name,
+			URL:   feed.URL,
+		}
+	}
 
 	// Track previous entry for NewDate/NewChannel flags
 	var prevDate string
@@ -227,24 +237,120 @@ func (r *Renderer) prepareTemplateData(entries []cache.Entry, cfg *config.Config
 
 		data.Items = append(data.Items, item)
 
-		// Track channel
-		if _, exists := channelMap[entry.ChannelName]; !exists {
-			channelMap[entry.ChannelName] = Channel{
-				Name:  entry.ChannelName,
-				Link:  entry.ChannelLink,
-				Title: entry.ChannelTitle,
-				URL:   entry.ChannelURL, // Feed URL
-			}
+		// Update channel info from entry if the channel already exists in our map
+		// This populates Link and Title for channels that have entries
+		if existingChannel, exists := channelMap[entry.ChannelName]; exists {
+			existingChannel.Link = entry.ChannelLink
+			existingChannel.Title = entry.ChannelTitle
+			channelMap[entry.ChannelName] = existingChannel
 		}
 
 		prevDate = dateStr
 		prevChannel = entry.ChannelName
 	}
 
-	// Convert channel map to slice
+	// Convert channel map to slice and sort alphabetically by name
 	for _, channel := range channelMap {
 		data.Channels = append(data.Channels, channel)
 	}
+	
+	// Sort channels alphabetically by name for easier browsing
+	sort.Slice(data.Channels, func(i, j int) bool {
+		return data.Channels[i].Name < data.Channels[j].Name
+	})
 
 	return data
+}
+
+// CopyStaticFiles copies static assets from source to output directory
+// This mirrors the Python version's behavior where static files live alongside output
+func (r *Renderer) CopyStaticFiles(staticSourceDir string) error {
+	if staticSourceDir == "" {
+		return nil // No static directory specified
+	}
+
+	// Check if source static directory exists
+	if _, err := os.Stat(staticSourceDir); os.IsNotExist(err) {
+		return nil // Source doesn't exist, skip silently
+	}
+
+	destStaticDir := filepath.Join(r.outputDir, "static")
+
+	// Remove existing static directory in output to ensure clean copy
+	if err := os.RemoveAll(destStaticDir); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("remove existing static directory: %w", err)
+	}
+
+	// Copy directory recursively
+	return copyDir(staticSourceDir, destStaticDir)
+}
+
+// copyDir recursively copies a directory
+func copyDir(src, dst string) error {
+	// Get source directory info
+	srcInfo, err := os.Stat(src)
+	if err != nil {
+		return fmt.Errorf("stat source directory: %w", err)
+	}
+
+	// Create destination directory
+	if err := os.MkdirAll(dst, srcInfo.Mode()); err != nil {
+		return fmt.Errorf("create destination directory: %w", err)
+	}
+
+	// Read source directory
+	entries, err := os.ReadDir(src)
+	if err != nil {
+		return fmt.Errorf("read source directory: %w", err)
+	}
+
+	// Copy each entry
+	for _, entry := range entries {
+		srcPath := filepath.Join(src, entry.Name())
+		dstPath := filepath.Join(dst, entry.Name())
+
+		if entry.IsDir() {
+			// Recursively copy subdirectory
+			if err := copyDir(srcPath, dstPath); err != nil {
+				return err
+			}
+		} else {
+			// Copy file
+			if err := copyFile(srcPath, dstPath); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+// copyFile copies a single file
+func copyFile(src, dst string) error {
+	// Open source file
+	srcFile, err := os.Open(src)
+	if err != nil {
+		return fmt.Errorf("open source file: %w", err)
+	}
+	defer srcFile.Close()
+
+	// Get source file info for permissions
+	srcInfo, err := srcFile.Stat()
+	if err != nil {
+		return fmt.Errorf("stat source file: %w", err)
+	}
+
+	// Create destination file
+	dstFile, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, srcInfo.Mode())
+	if err != nil {
+		return fmt.Errorf("create destination file: %w", err)
+	}
+	defer dstFile.Close()
+
+	// Copy contents
+	if _, err := io.Copy(dstFile, srcFile); err != nil {
+		return fmt.Errorf("copy file contents: %w", err)
+	}
+
+	return nil
 }

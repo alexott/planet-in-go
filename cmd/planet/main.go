@@ -350,6 +350,21 @@ func renderTemplates(cfg *config.Config, entries []cache.Entry, configPath strin
 
 	rendererInstance := renderer.New(cfg.Planet.OutputDir)
 
+	// Copy static files - look for static directory in same location as first template
+	if len(cfg.Planet.TemplateFiles) > 0 {
+		// Get directory of first template file
+		templateDir := filepath.Dir(cfg.Planet.TemplateFiles[0])
+		staticSourceDir := filepath.Join(templateDir, "static")
+		
+		slog.Debug("checking for static directory", "path", staticSourceDir)
+		
+		if err := rendererInstance.CopyStaticFiles(staticSourceDir); err != nil {
+			slog.Warn("failed to copy static files (non-fatal)", "error", err)
+		} else if _, err := os.Stat(staticSourceDir); err == nil {
+			slog.Info("static files copied", "from", staticSourceDir, "to", filepath.Join(cfg.Planet.OutputDir, "static"))
+		}
+	}
+
 	slog.Info("rendering templates", "count", len(cfg.Planet.TemplateFiles))
 
 	renderStart := time.Now()
