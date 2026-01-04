@@ -81,7 +81,11 @@ type TemplateConfig struct {
 // All relative paths in the config are resolved relative to the current working directory (project root),
 // matching the Python version behavior
 func Load(path string) (*Config, error) {
-	cfg, err := ini.Load(path)
+	// Load INI file with options to handle special characters in values
+	// IgnoreInlineComment prevents '#' from being treated as comment delimiter inside quoted strings
+	cfg, err := ini.LoadSources(ini.LoadOptions{
+		IgnoreInlineComment: true,
+	}, path)
 	if err != nil {
 		return nil, fmt.Errorf("load ini file: %w", err)
 	}
@@ -186,9 +190,13 @@ func parseFeedSections(iniFile *ini.File, config *Config) error {
 
 		// Check if it's a feed URL (starts with http)
 		if strings.HasPrefix(name, "http://") || strings.HasPrefix(name, "https://") {
+			feedName := section.Key("name").String()
+			// Strip surrounding quotes if present (e.g., "F# and Data Mining" -> F# and Data Mining)
+			feedName = strings.Trim(feedName, "\"")
+			
 			feed := FeedConfig{
 				URL:   name,
-				Name:  section.Key("name").String(),
+				Name:  feedName,
 				Extra: make(map[string]string),
 			}
 

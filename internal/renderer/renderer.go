@@ -176,9 +176,22 @@ func (r *Renderer) prepareTemplateData(entries []cache.Entry, cfg *config.Config
 	for _, feed := range cfg.Feeds {
 		channelMap[feed.Name] = Channel{
 			Name:  feed.Name,
-			Link:  "", // Will be populated from entries if available
+			Link:  "", // Will be populated from cache entries below
 			Title: feed.Name,
 			URL:   feed.URL,
+		}
+	}
+	
+	// Load channel links from ALL cache entries (not just filtered ones being rendered)
+	// This ensures channels have proper homepage links even if no recent entries
+	cacheInstance := cache.New(cfg.Planet.CacheDirectory)
+	if allEntries, err := cacheInstance.LoadAll(); err == nil {
+		for _, entry := range allEntries {
+			if ch, exists := channelMap[entry.ChannelName]; exists && ch.Link == "" {
+				ch.Link = entry.ChannelLink
+				ch.Title = entry.ChannelTitle
+				channelMap[entry.ChannelName] = ch
+			}
 		}
 	}
 
