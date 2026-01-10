@@ -234,6 +234,8 @@ name = Example Blog
 
 ### With Filtering
 
+See the [Filtering Content](#filtering-content) section below for detailed examples.
+
 ```ini
 [Planet]
 name = Clojure Planet
@@ -326,11 +328,193 @@ The feed server might be:
 
 Planet Go will use cached data if available.
 
+## Filtering Content
+
+Planet Go supports powerful regex-based filtering to control which entries appear in your output.
+
+### How Filtering Works
+
+Filters are applied to both the **title** and **content** of each entry:
+- **`filter`** - Include pattern: Only entries matching this regex are kept
+- **`exclude`** - Exclude pattern: Entries matching this regex are removed
+
+Both patterns use Go's RE2 regex syntax. The filter is applied first, then the exclude.
+
+**Note:** Go uses RE2 syntax, which is similar to but not fully compatible with PCRE. RE2 does not support some features like backreferences and lookahead/lookbehind assertions. See [RE2 syntax reference](https://github.com/google/re2/wiki/Syntax) for details.
+
+### Global Filtering
+
+Apply filters to all feeds by setting them in the `[Planet]` section:
+
+```ini
+[Planet]
+name = Clojure Planet
+filter = Clojure|ClojureScript|clj
+exclude = hiring|job opening|advertisement
+...
+```
+
+**How it works:**
+1. Only entries containing "Clojure", "ClojureScript", or "clj" are included
+2. Then entries containing "hiring", "job opening", or "advertisement" are removed
+
+### Per-Feed Filtering
+
+Override global filters for specific feeds:
+
+```ini
+[Planet]
+# Global filter - applies to all feeds by default
+filter = (Clojure|clojure)
+exclude = (spam|advertisement)
+
+# Feed 1: Uses global filter
+[https://blog.example.com/feed.xml]
+name = Example Blog
+# This feed inherits the global Clojure filter
+
+# Feed 2: Override with custom filter
+[https://news.example.com/feed.xml]
+name = News Blog
+filter = breaking|urgent
+# This feed only shows "breaking" or "urgent" posts
+
+# Feed 3: Show everything from this feed
+[https://important.example.com/feed.xml]
+name = Important Blog
+filter = .*
+# ".*" matches everything, effectively disabling filtering
+```
+
+**Per-feed filters override global filters completely.** If a feed has its own `filter` or `exclude`, the global one is ignored for that feed.
+
+### Common Filter Patterns
+
+**Include specific keywords:**
+```ini
+filter = Clojure|ClojureScript|Reagent
+```
+
+**Case-insensitive matching:**
+```ini
+filter = (?i)clojure
+# Matches: Clojure, CLOJURE, clojure, etc.
+```
+
+**Exclude unwanted content:**
+```ini
+exclude = \[sponsored\]|\[ad\]|advertisement
+```
+
+**Match word boundaries:**
+```ini
+filter = \bGo\b
+# Matches "Go" but not "Going" or "Gopher"
+```
+
+
+
+**Complex patterns:**
+```ini
+filter = (tutorial|guide|introduction).*Clojure
+# Matches tutorial, guide, or introduction followed by Clojure
+```
+
+### Filter Examples
+
+**Example 1: Language-specific planet**
+```ini
+[Planet]
+name = Go Planet
+filter = \bGo\b|Golang|go-
+exclude = job|hiring|position available
+```
+Shows only Go-related posts, excluding job postings.
+
+**Example 2: Quality control**
+```ini
+[Planet]
+exclude = sponsored|advertisement|click here|buy now
+```
+Removes low-quality content while keeping everything else.
+
+**Example 3: Mixed filters**
+```ini
+[Planet]
+# Global: only Clojure content
+filter = Clojure|ClojureScript
+
+# Most feeds use global filter
+[https://blog1.example.com/feed.xml]
+name = Blog 1
+
+[https://blog2.example.com/feed.xml]
+name = Blog 2
+
+# But this feed shows all posts
+[https://important.example.com/feed.xml]
+name = Important Announcements
+filter = .*
+exclude = 
+```
+
+**Example 4: Per-feed customization**
+```ini
+[Planet]
+# Default: no global filter
+
+[https://technical.example.com/feed.xml]
+name = Technical Blog
+filter = tutorial|how-to|guide
+
+[https://news.example.com/feed.xml]
+name = News Blog
+filter = release|announcement|launched
+
+[https://community.example.com/feed.xml]
+name = Community Blog
+# No filter - shows everything
+```
+
+### Debugging Filters
+
+Use debug mode to see which entries are filtered out:
+
+```bash
+./planet run -c config.ini -debug
+```
+
+Output will show:
+```
+DEBUG entry filtered out feed="Blog Name" title="Post Title"
+INFO  per-feed filtering complete total_entries=100 filtered_out=25 remaining=75
+```
+
+### Testing Filters
+
+Test your filter patterns before deployment:
+
+1. Create a test config with a single feed
+2. Run with debug mode: `./planet -c test.ini -debug`
+3. Check the output to see which entries match
+4. Adjust patterns as needed
+
+### Filter Tips
+
+- **Start broad, then narrow:** Begin with simple patterns and refine
+- **Use case-insensitive matching:** `(?i)` flag for flexibility
+- **Test with real data:** Run in debug mode to see what matches
+- **Escape special characters:** Use `\` before regex special chars: `.[](){}+*?|^$`
+- **Per-feed filters override completely:** No combining with global filters
+- **Empty pattern = no filtering:** Leave blank to disable a filter
+- **RE2 limitations:** Lookahead `(?=...)`, lookbehind `(?<=...)`, and backreferences `\1` are not supported
+- **Alternative for AND logic:** Instead of lookahead, fetch entries with either term and use multiple filters if needed
+
 ## Next Steps
 
 - **Add more feeds:** Just add `[URL]` sections to your config
 - **Customize templates:** Copy from `examples/` and modify
-- **Filter content:** Use `filter` and `exclude` patterns
+- **Filter content:** Use the patterns above to control what appears
 - **Twitter integration:** Automatically post new articles (see below)
 - **Deploy:** Set up cron/systemd for automatic updates
 

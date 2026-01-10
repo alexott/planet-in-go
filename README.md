@@ -213,10 +213,8 @@ Performance will improve significantly with concurrent fetching (planned for fut
 
 ## Documentation
 
-- **[Quick Start Guide](QUICKSTART.md)** - Get up and running in 5 minutes
-- **[Filtering Guide](FILTERING.md)** - Per-feed and global filtering
+- **[Quick Start Guide](QUICKSTART.md)** - Get up and running in 5 minutes (includes filtering guide)
 - **[Migration Guide](docs/MIGRATION.md)** - Migrate from Venus/Planet
-- **[Twitter Integration](TWITTER_INTEGRATION.md)** - Automatically post to Twitter
 - **[Template Examples](examples/)** - Example templates for various formats
 
 ## Migration from Venus/Planet
@@ -283,22 +281,21 @@ Based on the Venus/Planet feed aggregator. Reimplemented in Go by Alexey Ott.
 ## Roadmap
 
 **v0.1.0 (MVP)** - Current
+
 - ✅ Sequential feed fetching
+- ✅ Concurrent feed fetching
 - ✅ File-based caching
 - ✅ Go template rendering
 - ✅ Basic regex filtering
 - ✅ Twitter integration
 
 **v0.2.0 (Planned)**
-- Concurrent feed fetching
+
 - Rate limiting per feed
 - Improved error recovery
 - Metrics/monitoring
-- Twitter threads for multiple articles
 
 **Future**
-- Additional template engines
+
+- Additional template engines (maybe)
 - Advanced filtering options
-- Web-based admin interface
-- PubSubHubbub support
-- Media attachments for Twitter
