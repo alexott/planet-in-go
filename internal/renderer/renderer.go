@@ -181,7 +181,7 @@ func (r *Renderer) prepareTemplateData(entries []cache.Entry, cfg *config.Config
 			URL:   feed.URL,
 		}
 	}
-	
+
 	// Load channel links from ALL cache entries (not just filtered ones being rendered)
 	// This ensures channels have proper homepage links even if no recent entries
 	cacheInstance := cache.New(cfg.Planet.CacheDirectory)
@@ -266,7 +266,7 @@ func (r *Renderer) prepareTemplateData(entries []cache.Entry, cfg *config.Config
 	for _, channel := range channelMap {
 		data.Channels = append(data.Channels, channel)
 	}
-	
+
 	// Sort channels alphabetically by name for easier browsing
 	sort.Slice(data.Channels, func(i, j int) bool {
 		return data.Channels[i].Name < data.Channels[j].Name

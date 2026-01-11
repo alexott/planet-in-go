@@ -21,13 +21,13 @@ help: ## Show this help message
 	@echo 'Available targets:'
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-15s %s\n", $$1, $$2}'
 
-build: ## Build the planet binary
+build: deps ## Build the planet binary
 	$(GOBUILD) -o $(BINARY) ./cmd/planet
 
 build-release: ## Build with optimizations (smaller binary)
 	$(GOBUILD) $(LDFLAGS) -o $(BINARY) ./cmd/planet
 
-test: ## Run all tests
+test: deps ## Run all tests
 	$(GOTEST) ./... -v
 
 test-coverage: ## Run tests with coverage report

@@ -193,7 +193,7 @@ func parseFeedSections(iniFile *ini.File, config *Config) error {
 			feedName := section.Key("name").String()
 			// Strip surrounding quotes if present (e.g., "F# and Data Mining" -> F# and Data Mining)
 			feedName = strings.Trim(feedName, "\"")
-			
+
 			feed := FeedConfig{
 				URL:   name,
 				Name:  feedName,
