@@ -70,6 +70,34 @@ func TestFormatTweet(t *testing.T) {
 			},
 			maxLength: 280,
 		},
+		{
+			name: "multiple twitter handles",
+			entry: cache.Entry{
+				Title: "Co-authored Article About Database Systems",
+				Link:  "https://example.com/database-article",
+			},
+			twitterHandle: "yunyao_li,huahaiy",
+			wantContains: []string{
+				"Co-authored Article About Database Systems",
+				"(by @yunyao_li, @huahaiy)",
+				"https://example.com/database-article",
+			},
+			maxLength: 280,
+		},
+		{
+			name: "multiple twitter handles with spaces",
+			entry: cache.Entry{
+				Title: "Another Co-authored Article",
+				Link:  "https://example.com/article",
+			},
+			twitterHandle: "author1, author2, author3",
+			wantContains: []string{
+				"Another Co-authored Article",
+				"(by @author1, @author2, @author3)",
+				"https://example.com/article",
+			},
+			maxLength: 280,
+		},
 	}
 
 	for _, tt := range tests {

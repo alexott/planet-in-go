@@ -144,7 +144,18 @@ func formatTweet(entry cache.Entry, twitterHandle string) string {
 	// Build attribution
 	attribution := ""
 	if twitterHandle != "" {
-		attribution = fmt.Sprintf(" (by @%s)", twitterHandle)
+		// Handle multiple Twitter handles separated by commas
+		handles := strings.Split(twitterHandle, ",")
+		formattedHandles := make([]string, 0, len(handles))
+		for _, handle := range handles {
+			handle = strings.TrimSpace(handle)
+			if handle != "" {
+				formattedHandles = append(formattedHandles, "@"+handle)
+			}
+		}
+		if len(formattedHandles) > 0 {
+			attribution = fmt.Sprintf(" (by %s)", strings.Join(formattedHandles, ", "))
+		}
 	}
 
 	// Add link
