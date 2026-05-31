@@ -12,7 +12,7 @@ Originally designed for Planet Clojure, replacing the unmaintained Python 2.x Ve
 - **Fast RSS/Atom feed fetching** with HTTP conditional GET caching
 - **Flexible template rendering** with Go's html/template
 - **Regex-based content filtering** (include/exclude patterns)
-- **Twitter integration** - automatically post new articles to Twitter
+- **Twitter and Mastodon integration** - automatically post new articles to supported social networks
 - **Graceful error handling** - continues on individual feed failures
 - **Single binary deployment** - no dependencies to install
 - **Structured logging** with customizable log levels
@@ -48,7 +48,7 @@ go install github.com/alexey-ott/planet-go/cmd/planet@latest
 ./planet run -c config.ini           # Fetch, render, and post (all-in-one)
 ./planet fetch -c config.ini         # Only fetch and cache feeds
 ./planet render -c config.ini        # Only render templates from cache
-./planet post -c config.ini          # Only post to Twitter from cache
+./planet post -c config.ini          # Only post to enabled networks from cache
 
 # Other commands
 ./planet version                     # Show version information
@@ -72,7 +72,7 @@ go install github.com/alexey-ott/planet-go/cmd/planet@latest
 # ... edit templates ...
 ./planet render -c config.ini        # Re-render with updated template
 
-# Twitter posting workflow
+# Social posting workflow
 ./planet run -c config.ini           # Fetch + render + post (all-in-one)
 ./planet fetch -c config.ini         # Fetch only (no render, no post)
 ./planet post -c config.ini          # Post only (from cache)
@@ -80,7 +80,7 @@ go install github.com/alexey-ott/planet-go/cmd/planet@latest
 # Debug a slow feed
 ./planet fetch -c config.ini -debug  # Shows timing for each feed
 
-# Test Twitter posting
+# Test social posting
 ./planet post -c config.ini -debug   # Shows what would be posted
 ```
 
@@ -195,7 +195,9 @@ planet-go/
 │   ├── cache/           # File-based caching
 │   ├── fetcher/         # Feed fetching
 │   ├── filter/          # Content filtering
-│   └── renderer/        # Template rendering
+│   ├── mastodon/        # Mastodon posting
+│   ├── renderer/        # Template rendering
+│   └── twitter/         # Twitter posting
 ├── docs/                # Documentation
 └── examples/            # Example templates
 ```
@@ -225,7 +227,7 @@ See `docs/MIGRATION.md` for step-by-step migration guide.
 1. Templates must be converted to Go template syntax
 2. Only basic regex filtering supported (no complex plugins)
 3. Single template engine (Go templates only)
-4. Twitter integration now available (optional)
+4. Twitter and Mastodon integration now available (optional)
 
 ## Troubleshooting
 
@@ -275,6 +277,7 @@ Based on the Venus/Planet feed aggregator. Reimplemented in Go by Alexey Ott.
 
 **Dependencies:**
 - [go-ini/ini](https://github.com/go-ini/ini) - INI parsing
+- [mattn/go-mastodon](https://github.com/mattn/go-mastodon) - Mastodon API client
 - [mmcdole/gofeed](https://github.com/mmcdole/gofeed) - RSS/Atom parsing
 - [michimani/gotwi](https://github.com/michimani/gotwi) - Twitter API v2
 
@@ -288,6 +291,7 @@ Based on the Venus/Planet feed aggregator. Reimplemented in Go by Alexey Ott.
 - ✅ Go template rendering
 - ✅ Basic regex filtering
 - ✅ Twitter integration
+- ✅ Mastodon integration
 
 **v0.2.0 (Planned)**
 

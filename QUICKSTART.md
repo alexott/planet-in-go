@@ -515,14 +515,40 @@ Test your filter patterns before deployment:
 - **Add more feeds:** Just add `[URL]` sections to your config
 - **Customize templates:** Copy from `examples/` and modify
 - **Filter content:** Use the patterns above to control what appears
-- **Twitter integration:** Automatically post new articles (see below)
+- **Social posting:** Automatically post new articles to Twitter and/or Mastodon (see below)
 - **Deploy:** Set up cron/systemd for automatic updates
 
-## Twitter Integration (Optional)
+## Social Posting (Optional)
 
-Want to automatically post new articles to Twitter? Planet Go has you covered!
+Planet Go can automatically post new articles to Twitter, Mastodon, or both.
 
-### Quick Setup
+### Mastodon quick setup
+
+1. **Enable in config:**
+```ini
+[Planet]
+post_to_mastodon = true
+mastodon_tracking_file = mastodon_posted.json
+```
+
+2. **Set environment variables:**
+```bash
+export MASTODON_SERVER="https://fosstodon.org"
+export MASTODON_CLIENT_ID="your-client-id"
+export MASTODON_CLIENT_SECRET="your-client-secret"
+export MASTODON_ACCESS_TOKEN="your-access-token"
+```
+
+3. **Add attribution per feed (optional):**
+```ini
+[https://blog.example.com/feed.xml]
+name = Example Blog
+mastodon = @example@fosstodon.org
+```
+
+If `mastodon` is omitted for a feed, Planet Go will post with `(by Example Blog)` using the feed `name`.
+
+### Twitter quick setup
 
 1. **Enable in config:**
 ```ini
@@ -546,28 +572,25 @@ name = Example Blog
 twitter = authorhandle
 ```
 
-That's it! New articles will be posted to Twitter.
-
 **Commands:**
-- `./planet run` - Fetch + render + post (all-in-one)
+- `./planet run` - Fetch + render + post to enabled networks
 - `./planet fetch` - Fetch only (no post)
 - `./planet render` - Render only (no post)
 - `./planet post` - Post only (from cache)
 
-**First run:** Posts the 10 most recent articles  
-**Subsequent runs:** Posts only new articles
+**First run behavior:**
+- Mastodon starts from the latest 50 cached posts, then only posts new articles
+- Twitter keeps its existing initial posting behavior
 
 **Testing:**
 ```bash
 ./planet post -c config.ini -debug
 ```
 
-For complete documentation, see **[TWITTER_INTEGRATION.md](TWITTER_INTEGRATION.md)**.
-
 ## Resources
 
 - **Full Documentation:** [README.md](README.md)
-- **Twitter Integration:** [TWITTER_INTEGRATION.md](TWITTER_INTEGRATION.md)
+- **Social Posting:** See the social posting section above
 - **Migration Guide:** [docs/MIGRATION.md](docs/MIGRATION.md)
 - **Example Templates:** [examples/](examples/)
 - **Design Document:** [docs/plans/2025-01-08-planet-go-design.md](docs/plans/2025-01-08-planet-go-design.md)
@@ -614,4 +637,3 @@ cp config.ini config.ini.backup
 You now have a working Planet aggregator! 🚀
 
 Customize it to your needs and enjoy fast, reliable feed aggregation.
-
