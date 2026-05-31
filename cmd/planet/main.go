@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"log/slog"
@@ -15,6 +16,7 @@ import (
 	"github.com/alexey-ott/planet-go/internal/config"
 	"github.com/alexey-ott/planet-go/internal/fetcher"
 	"github.com/alexey-ott/planet-go/internal/filter"
+	mastodonposter "github.com/alexey-ott/planet-go/internal/mastodon"
 	"github.com/alexey-ott/planet-go/internal/renderer"
 	"github.com/alexey-ott/planet-go/internal/twitter"
 )
@@ -63,10 +65,10 @@ Usage:
   planet [command] [options]
 
 Commands:
-  run      Fetch feeds, render templates, and post to Twitter (default)
+  run      Fetch feeds, render templates, and post to enabled networks (default)
   fetch    Fetch feeds and update cache only (no posting)
   render   Render templates from cache only (no posting)
-  post     Post new articles to Twitter from cache (no fetching)
+  post     Post new articles to enabled networks from cache
   version  Show version information
 
 Options:
@@ -80,7 +82,7 @@ Examples:
   planet run -c config.ini -debug     # Run with debug logging
   planet fetch -c config.ini          # Only fetch and cache feeds (no posting)
   planet render -c config.ini         # Only render from cache (no posting)
-  planet post -c config.ini           # Only post to Twitter from cache
+  planet post -c config.ini           # Only post to enabled networks from cache
   planet version                      # Show version
 
 For more information, visit: https://github.com/alexey-ott/planet-go
@@ -427,8 +429,9 @@ func runFetchAndRender(configPath string, debugMode bool) error {
 		"entries", len(filtered),
 		"total_duration", totalDuration)
 
-	// Post to Twitter if enabled
-	if cfg.Planet.PostToTwitter {
+	twitterEnabled, mastodonEnabled := postingTargets(cfg)
+
+	if twitterEnabled {
 		slog.Info("Twitter posting enabled, posting new articles")
 		if err := postToTwitter(cfg, filtered); err != nil {
 			// Log error but don't fail the entire command
@@ -436,6 +439,15 @@ func runFetchAndRender(configPath string, debugMode bool) error {
 		}
 	} else {
 		slog.Debug("Twitter posting disabled in configuration")
+	}
+
+	if mastodonEnabled {
+		slog.Info("Mastodon posting enabled, posting new articles")
+		if err := postToMastodon(cfg, filtered); err != nil {
+			slog.Error("Mastodon posting failed", "error", err)
+		}
+	} else {
+		slog.Debug("Mastodon posting disabled in configuration")
 	}
 
 	return nil
@@ -512,7 +524,7 @@ func runRender(configPath string, debugMode bool) error {
 	return err
 }
 
-// postCommand implements the "post" command - post to Twitter from cache only
+// postCommand implements the "post" command - post to enabled networks from cache only
 func postCommand(args []string) {
 	fs := flag.NewFlagSet("post", flag.ExitOnError)
 	configPath := fs.String("c", "config.ini", "path to config file")
@@ -521,27 +533,28 @@ func postCommand(args []string) {
 	fs.Parse(args[1:])
 
 	if err := runPost(*configPath, *debugMode); err != nil {
-		slog.Error("failed to post to Twitter", "error", err)
+		slog.Error("failed to post to enabled networks", "error", err)
 		os.Exit(1)
 	}
 }
 
-// runPost implements the "post" command - post to Twitter from cache only
+// runPost implements the "post" command - post to enabled networks from cache only
 func runPost(configPath string, debugMode bool) error {
 	cfg, err := loadConfig(configPath, debugMode)
 	if err != nil {
 		return err
 	}
 
-	slog.Info("starting planet (post to Twitter only)",
+	slog.Info("starting planet (post to enabled networks)",
 		"version", version)
 
-	// Check if Twitter posting is enabled
-	if !cfg.Planet.PostToTwitter {
-		slog.Warn("Twitter posting is disabled in configuration (post_to_twitter = false)")
-		fmt.Println("Twitter posting is disabled. Enable it in your config.ini:")
+	twitterEnabled, mastodonEnabled := postingTargets(cfg)
+	if !twitterEnabled && !mastodonEnabled {
+		slog.Warn("posting is disabled in configuration")
+		fmt.Println("Posting is disabled. Enable one or both in your config.ini:")
 		fmt.Println("  [Planet]")
 		fmt.Println("  post_to_twitter = true")
+		fmt.Println("  post_to_mastodon = true")
 		return nil
 	}
 
@@ -557,16 +570,24 @@ func runPost(configPath string, debugMode bool) error {
 		return nil
 	}
 
-	// Limit to 10 most recent entries for Twitter posting
-	filtered = limitEntries(filtered, 10)
-	slog.Debug("limited entries for Twitter posting", "count", len(filtered), "max", 10)
-
-	// Post to Twitter
-	slog.Info("posting to Twitter", "entries", len(filtered))
 	postStart := time.Now()
+	var postErrs []error
 
-	if err := postToTwitter(cfg, filtered); err != nil {
-		return fmt.Errorf("post to Twitter: %w", err)
+	if twitterEnabled {
+		twitterEntries := prepareTwitterPostEntries(filtered)
+		slog.Debug("limited entries for Twitter posting", "count", len(twitterEntries), "max", 10)
+		slog.Info("posting to Twitter", "entries", len(twitterEntries))
+		if err := postToTwitter(cfg, twitterEntries); err != nil {
+			postErrs = append(postErrs, fmt.Errorf("post to Twitter: %w", err))
+		}
+	}
+
+	if mastodonEnabled {
+		mastodonEntries := prepareMastodonPostEntries(filtered)
+		slog.Info("posting to Mastodon", "entries", len(mastodonEntries))
+		if err := postToMastodon(cfg, mastodonEntries); err != nil {
+			postErrs = append(postErrs, fmt.Errorf("post to Mastodon: %w", err))
+		}
 	}
 
 	postDuration := time.Since(postStart)
@@ -575,7 +596,7 @@ func runPost(configPath string, debugMode bool) error {
 		"entries", len(filtered),
 		"duration", postDuration)
 
-	return nil
+	return errors.Join(postErrs...)
 }
 
 func parseLogLevel(level string) slog.Level {
@@ -593,17 +614,44 @@ func parseLogLevel(level string) slog.Level {
 	}
 }
 
-// postToTwitter posts new articles to Twitter
-func postToTwitter(cfg *config.Config, entries []cache.Entry) error {
-	// Get tracking file path (resolve relative to cache directory if needed)
-	trackingFile := cfg.Planet.TwitterTrackingFile
-	if !filepath.IsAbs(trackingFile) {
-		trackingFile = filepath.Join(cfg.Planet.CacheDirectory, trackingFile)
+type articlePoster interface {
+	PostNewArticles(entries []cache.Entry, feedConfigs []config.FeedConfig, maxInitial int) error
+}
+
+var newTwitterPoster = func(trackingFile string) (articlePoster, error) {
+	return twitter.NewPoster(trackingFile)
+}
+
+var newMastodonPoster = func(trackingFile string) (articlePoster, error) {
+	return mastodonposter.NewPoster(trackingFile)
+}
+
+func postingTargets(cfg *config.Config) (bool, bool) {
+	return cfg.Planet.PostToTwitter, cfg.Planet.PostToMastodon
+}
+
+func resolveTrackingFile(cacheDir, trackingFile string) string {
+	if filepath.IsAbs(trackingFile) {
+		return trackingFile
 	}
+	return filepath.Join(cacheDir, trackingFile)
+}
+
+func prepareTwitterPostEntries(entries []cache.Entry) []cache.Entry {
+	return limitEntries(entries, 10)
+}
+
+func prepareMastodonPostEntries(entries []cache.Entry) []cache.Entry {
+	return sortEntriesByDate(entries)
+}
+
+// postToTwitter posts new articles to Twitter.
+func postToTwitter(cfg *config.Config, entries []cache.Entry) error {
+	trackingFile := resolveTrackingFile(cfg.Planet.CacheDirectory, cfg.Planet.TwitterTrackingFile)
 
 	slog.Info("Initializing Twitter poster", "tracking_file", trackingFile)
 
-	poster, err := twitter.NewPoster(trackingFile)
+	poster, err := newTwitterPoster(trackingFile)
 	if err != nil {
 		return fmt.Errorf("create Twitter poster: %w", err)
 	}
@@ -612,6 +660,25 @@ func postToTwitter(cfg *config.Config, entries []cache.Entry) error {
 	maxInitial := 5
 	if err := poster.PostNewArticles(entries, cfg.Feeds, maxInitial); err != nil {
 		return fmt.Errorf("post to Twitter: %w", err)
+	}
+
+	return nil
+}
+
+// postToMastodon posts new articles to Mastodon.
+func postToMastodon(cfg *config.Config, entries []cache.Entry) error {
+	trackingFile := resolveTrackingFile(cfg.Planet.CacheDirectory, cfg.Planet.MastodonTrackingFile)
+
+	slog.Info("Initializing Mastodon poster", "tracking_file", trackingFile)
+
+	poster, err := newMastodonPoster(trackingFile)
+	if err != nil {
+		return fmt.Errorf("create Mastodon poster: %w", err)
+	}
+
+	const maxInitial = 50
+	if err := poster.PostNewArticles(entries, cfg.Feeds, maxInitial); err != nil {
+		return fmt.Errorf("post to Mastodon: %w", err)
 	}
 
 	return nil
