@@ -82,3 +82,51 @@ name = Another Feed
 		t.Errorf("Feed[0].Extra[twitter] = %q, want %q", feed.Extra["twitter"], "exampleuser")
 	}
 }
+
+func TestLoad_ParsesMastodonSettings(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.ini")
+
+	content := `[Planet]
+name = Test Planet
+cache_directory = /tmp/cache
+output_dir = /tmp/output
+post_to_mastodon = true
+mastodon_tracking_file = mastodon_state.json
+
+[https://example.com/feed.xml]
+name = Example Feed
+mastodon = @example@fosstodon.org
+`
+
+	if err := os.WriteFile(configPath, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if !cfg.Planet.PostToMastodon {
+		t.Error("Planet.PostToMastodon = false, want true")
+	}
+	if cfg.Planet.MastodonTrackingFile != "mastodon_state.json" {
+		t.Errorf("Planet.MastodonTrackingFile = %q, want %q", cfg.Planet.MastodonTrackingFile, "mastodon_state.json")
+	}
+	if got := cfg.Feeds[0].MastodonHandle(); got != "@example@fosstodon.org" {
+		t.Errorf("Feed.MastodonHandle() = %q, want %q", got, "@example@fosstodon.org")
+	}
+}
+
+func TestFeedConfig_MastodonHandleFallback(t *testing.T) {
+	feed := FeedConfig{
+		URL:   "https://example.com/feed.xml",
+		Name:  "Example Feed",
+		Extra: map[string]string{},
+	}
+
+	if got := feed.MastodonHandle(); got != "" {
+		t.Errorf("MastodonHandle() = %q, want empty string", got)
+	}
+}

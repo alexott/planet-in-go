@@ -25,9 +25,10 @@ cache_directory = test/cache
 output_dir = test/output
 template_files = test/template1.html.tmpl test/template2.xml.tmpl
 twitter_tracking_file = test/twitter.json
+	mastodon_tracking_file = test/mastodon.json
 
-[test/template1.html.tmpl]
-days_per_page = 5
+	[test/template1.html.tmpl]
+	days_per_page = 5
 
 [https://example.com/feed.xml]
 name = Example Feed
@@ -58,9 +59,17 @@ name = Example Feed
 		t.Errorf("TwitterTrackingFile: expected %s, got %s", expectedTwitter, cfg.Planet.TwitterTrackingFile)
 	}
 
+	expectedMastodon := "test/mastodon.json"
+	if cfg.Planet.MastodonTrackingFile != expectedMastodon {
+		t.Errorf("MastodonTrackingFile: expected %s, got %s", expectedMastodon, cfg.Planet.MastodonTrackingFile)
+	}
+
 	// Twitter tracking file should be relative (resolved at runtime to cache dir)
 	if filepath.IsAbs(cfg.Planet.TwitterTrackingFile) {
 		t.Error("TwitterTrackingFile should be relative (will be resolved to cache directory at runtime)")
+	}
+	if filepath.IsAbs(cfg.Planet.MastodonTrackingFile) {
+		t.Error("MastodonTrackingFile should be relative (will be resolved to cache directory at runtime)")
 	}
 
 	// Test template files

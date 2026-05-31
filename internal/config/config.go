@@ -18,27 +18,29 @@ type Config struct {
 
 // PlanetConfig holds global planet settings
 type PlanetConfig struct {
-	Name                string
-	Link                string
-	OwnerName           string
-	OwnerEmail          string
-	CacheDirectory      string
-	OutputDir           string
-	LogLevel            string
-	FeedTimeout         int
-	NewFeedItems        int
-	ItemsPerPage        int
-	DaysPerPage         int
-	DateFormat          string
-	NewDateFormat       string
-	Encoding            string
-	TemplateFiles       []string
-	Filter              string
-	Exclude             string
-	PostToTwitter       bool
-	TwitterTrackingFile string
-	FetchMode           string // "parallel" or "sequential" (default: "parallel")
-	ParallelWorkers     int    // Number of parallel workers (default: 10)
+	Name                 string
+	Link                 string
+	OwnerName            string
+	OwnerEmail           string
+	CacheDirectory       string
+	OutputDir            string
+	LogLevel             string
+	FeedTimeout          int
+	NewFeedItems         int
+	ItemsPerPage         int
+	DaysPerPage          int
+	DateFormat           string
+	NewDateFormat        string
+	Encoding             string
+	TemplateFiles        []string
+	Filter               string
+	Exclude              string
+	PostToTwitter        bool
+	TwitterTrackingFile  string
+	PostToMastodon       bool
+	MastodonTrackingFile string
+	FetchMode            string // "parallel" or "sequential" (default: "parallel")
+	ParallelWorkers      int    // Number of parallel workers (default: 10)
 }
 
 // FeedConfig represents a single feed subscription
@@ -51,6 +53,14 @@ type FeedConfig struct {
 // TwitterHandle returns the Twitter handle for attribution, or empty string if not set
 func (f *FeedConfig) TwitterHandle() string {
 	if handle, ok := f.Extra["twitter"]; ok {
+		return handle
+	}
+	return ""
+}
+
+// MastodonHandle returns the Mastodon name for attribution, or empty string if not set
+func (f *FeedConfig) MastodonHandle() string {
+	if handle, ok := f.Extra["mastodon"]; ok {
 		return handle
 	}
 	return ""
@@ -138,28 +148,31 @@ func parsePlanetSection(iniFile *ini.File, config *Config) error {
 	}
 
 	twitterTrackingFile := section.Key("twitter_tracking_file").MustString("twitter_posted.json")
+	mastodonTrackingFile := section.Key("mastodon_tracking_file").MustString("mastodon_posted.json")
 
 	config.Planet = PlanetConfig{
-		Name:                section.Key("name").String(),
-		Link:                section.Key("link").String(),
-		OwnerName:           section.Key("owner_name").String(),
-		OwnerEmail:          section.Key("owner_email").String(),
-		CacheDirectory:      cacheDir,
-		OutputDir:           outputDir,
-		LogLevel:            section.Key("log_level").MustString("INFO"),
-		FeedTimeout:         section.Key("feed_timeout").MustInt(20),
-		NewFeedItems:        section.Key("new_feed_items").MustInt(10),
-		ItemsPerPage:        section.Key("items_per_page").MustInt(15),
-		DaysPerPage:         section.Key("days_per_page").MustInt(0),
-		DateFormat:          strftimeToGoLayout(rawDate),
-		NewDateFormat:       strftimeToGoLayout(rawNewDate),
-		Encoding:            section.Key("encoding").MustString("utf-8"),
-		Filter:              section.Key("filter").String(),
-		Exclude:             section.Key("exclude").String(),
-		PostToTwitter:       section.Key("post_to_twitter").MustBool(false),
-		TwitterTrackingFile: twitterTrackingFile,
-		FetchMode:           section.Key("fetch_mode").MustString("parallel"),
-		ParallelWorkers:     section.Key("parallel_workers").MustInt(10),
+		Name:                 section.Key("name").String(),
+		Link:                 section.Key("link").String(),
+		OwnerName:            section.Key("owner_name").String(),
+		OwnerEmail:           section.Key("owner_email").String(),
+		CacheDirectory:       cacheDir,
+		OutputDir:            outputDir,
+		LogLevel:             section.Key("log_level").MustString("INFO"),
+		FeedTimeout:          section.Key("feed_timeout").MustInt(20),
+		NewFeedItems:         section.Key("new_feed_items").MustInt(10),
+		ItemsPerPage:         section.Key("items_per_page").MustInt(15),
+		DaysPerPage:          section.Key("days_per_page").MustInt(0),
+		DateFormat:           strftimeToGoLayout(rawDate),
+		NewDateFormat:        strftimeToGoLayout(rawNewDate),
+		Encoding:             section.Key("encoding").MustString("utf-8"),
+		Filter:               section.Key("filter").String(),
+		Exclude:              section.Key("exclude").String(),
+		PostToTwitter:        section.Key("post_to_twitter").MustBool(false),
+		TwitterTrackingFile:  twitterTrackingFile,
+		PostToMastodon:       section.Key("post_to_mastodon").MustBool(false),
+		MastodonTrackingFile: mastodonTrackingFile,
+		FetchMode:            section.Key("fetch_mode").MustString("parallel"),
+		ParallelWorkers:      section.Key("parallel_workers").MustInt(10),
 	}
 
 	// Parse template_files (space-separated) and resolve paths relative to CWD
