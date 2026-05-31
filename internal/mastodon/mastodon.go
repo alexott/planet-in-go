@@ -165,16 +165,18 @@ func selectEntriesToPost(entries []cache.Entry, tracking *TrackingData, maxIniti
 		return sorted[i].Date.Before(sorted[j].Date)
 	})
 
-	newEntries := make([]cache.Entry, 0, len(sorted))
-	for _, entry := range sorted {
+	window := sorted
+	if len(window) > maxInitial {
+		window = window[len(window)-maxInitial:]
+	}
+
+	newEntries := make([]cache.Entry, 0, len(window))
+	for _, entry := range window {
 		if !(&Poster{}).isPosted(entry.ID, tracking) {
 			newEntries = append(newEntries, entry)
 		}
 	}
 
-	if len(tracking.Articles) == 0 && len(newEntries) > maxInitial {
-		return newEntries[len(newEntries)-maxInitial:]
-	}
 	return newEntries
 }
 
