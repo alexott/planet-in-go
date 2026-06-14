@@ -40,6 +40,8 @@ func main() {
 		renderCommand(os.Args[1:])
 	case "post":
 		postCommand(os.Args[1:])
+	case "cleanup-mastodon":
+		cleanupMastodonCommand(os.Args[1:])
 	case "version":
 		versionCommand()
 	case "-version", "--version":
@@ -69,6 +71,7 @@ Commands:
   fetch    Fetch feeds and update cache only (no posting)
   render   Render templates from cache only (no posting)
   post     Post new articles to enabled networks from cache
+  cleanup-mastodon  Dry-run or delete incident-era Mastodon posts
   version  Show version information
 
 Options:
@@ -618,12 +621,20 @@ type articlePoster interface {
 	PostNewArticles(entries []cache.Entry, feedConfigs []config.FeedConfig, maxInitial int) error
 }
 
+type mastodonCleanupRunner interface {
+	Cleanup(ctx context.Context, opts mastodonposter.CleanupOptions) (mastodonposter.CleanupResult, error)
+}
+
 var newTwitterPoster = func(trackingFile string) (articlePoster, error) {
 	return twitter.NewPoster(trackingFile)
 }
 
 var newMastodonPoster = func(trackingFile string) (articlePoster, error) {
 	return mastodonposter.NewPoster(trackingFile)
+}
+
+var newMastodonCleaner = func(cacheDir string) (mastodonCleanupRunner, error) {
+	return mastodonposter.NewCleaner(cacheDir)
 }
 
 func postingTargets(cfg *config.Config) (bool, bool) {
@@ -643,6 +654,86 @@ func prepareTwitterPostEntries(entries []cache.Entry) []cache.Entry {
 
 func prepareMastodonPostEntries(entries []cache.Entry) []cache.Entry {
 	return sortEntriesByDate(entries)
+}
+
+func defaultCleanupMastodonOptions() mastodonposter.CleanupOptions {
+	return mastodonposter.CleanupOptions{
+		WindowStart:        time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC),
+		WindowEndExclusive: time.Date(2026, 6, 4, 0, 0, 0, 0, time.UTC),
+		ArticleBefore:      time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC),
+	}
+}
+
+func cleanupMastodonCommand(args []string) {
+	fs := flag.NewFlagSet("cleanup-mastodon", flag.ExitOnError)
+	configPath := fs.String("c", "config.ini", "path to config file")
+	debugMode := fs.Bool("debug", false, "enable debug logging (overrides config log_level)")
+	opts, err := parseCleanupMastodonFlags(fs, args[1:])
+	if err != nil {
+		slog.Error("failed to parse cleanup-mastodon flags", "error", err)
+		os.Exit(1)
+	}
+
+	cfg, err := loadConfig(*configPath, *debugMode)
+	if err != nil {
+		slog.Error("failed to load config for Mastodon cleanup", "error", err)
+		os.Exit(1)
+	}
+
+	if err := runCleanupMastodon(cfg, opts); err != nil {
+		slog.Error("failed to cleanup Mastodon statuses", "error", err)
+		os.Exit(1)
+	}
+}
+
+func parseCleanupMastodonFlags(fs *flag.FlagSet, args []string) (mastodonposter.CleanupOptions, error) {
+	opts := defaultCleanupMastodonOptions()
+	applyMode := fs.Bool("apply", false, "actually delete matching statuses")
+	fromValue := fs.String("from", opts.WindowStart.Format(time.RFC3339), "incident window start in RFC3339")
+	toValue := fs.String("to", opts.WindowEndExclusive.Format(time.RFC3339), "incident window end (exclusive) in RFC3339")
+	articleBeforeValue := fs.String("article-before", opts.ArticleBefore.Format(time.RFC3339), "delete only if article date is before this RFC3339 timestamp")
+
+	if err := fs.Parse(args); err != nil {
+		return mastodonposter.CleanupOptions{}, err
+	}
+
+	var err error
+	opts.WindowStart, err = time.Parse(time.RFC3339, *fromValue)
+	if err != nil {
+		return mastodonposter.CleanupOptions{}, fmt.Errorf("parse -from: %w", err)
+	}
+	opts.WindowEndExclusive, err = time.Parse(time.RFC3339, *toValue)
+	if err != nil {
+		return mastodonposter.CleanupOptions{}, fmt.Errorf("parse -to: %w", err)
+	}
+	opts.ArticleBefore, err = time.Parse(time.RFC3339, *articleBeforeValue)
+	if err != nil {
+		return mastodonposter.CleanupOptions{}, fmt.Errorf("parse -article-before: %w", err)
+	}
+	opts.Apply = *applyMode
+
+	return opts, nil
+}
+
+func runCleanupMastodon(cfg *config.Config, opts mastodonposter.CleanupOptions) error {
+	cleaner, err := newMastodonCleaner(cfg.Planet.CacheDirectory)
+	if err != nil {
+		return fmt.Errorf("create Mastodon cleaner: %w", err)
+	}
+
+	result, err := cleaner.Cleanup(context.Background(), opts)
+	if err != nil {
+		return fmt.Errorf("cleanup Mastodon statuses: %w", err)
+	}
+
+	slog.Info("Mastodon cleanup complete",
+		"examined", result.Examined,
+		"in_window", result.InWindow,
+		"matched", result.Matched,
+		"deleted", result.Deleted,
+		"apply", opts.Apply)
+
+	return nil
 }
 
 // postToTwitter posts new articles to Twitter.
