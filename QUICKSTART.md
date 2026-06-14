@@ -587,6 +587,30 @@ twitter = authorhandle
 ./planet post -c config.ini -debug
 ```
 
+### Cleanup duplicate/old Mastodon posts
+
+If you need to remove the June 1-3 incident posts without touching newer posts, use:
+
+```bash
+./planet cleanup-mastodon -c config.ini
+```
+
+This command is a **dry run by default**. It only targets Mastodon statuses posted from **2026-06-01** through **2026-06-03** whose linked article is older than **2026-05-01**.
+
+To actually delete the matched posts:
+
+```bash
+./planet cleanup-mastodon -c config.ini -apply
+```
+
+The command deletes sequentially and pauses as needed to stay within Mastodon’s delete limit of **30 calls per 30 minutes**.
+
+You can override the built-in incident window or article cutoff with RFC3339 timestamps:
+
+```bash
+./planet cleanup-mastodon -c config.ini -from 2026-06-01T00:00:00Z -to 2026-06-04T00:00:00Z -article-before 2026-05-01T00:00:00Z
+```
+
 ## Resources
 
 - **Full Documentation:** [README.md](README.md)

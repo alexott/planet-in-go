@@ -3,6 +3,7 @@ module github.com/alexey-ott/planet-go
 go 1.25.3
 
 require (
+	github.com/PuerkitoBio/goquery v1.8.0
 	github.com/go-ini/ini v1.67.0
 	github.com/mattn/go-mastodon v0.0.11
 	github.com/michimani/gotwi v0.18.1
@@ -10,7 +11,6 @@ require (
 )
 
 require (
-	github.com/PuerkitoBio/goquery v1.8.0 // indirect
 	github.com/andybalholm/cascadia v1.3.1 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
