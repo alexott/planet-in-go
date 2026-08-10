@@ -12,8 +12,8 @@ github.com/gorilla/websocket v1.5.3 h1:saDtZ6Pbx/0u+bgYQ3q96pZgCzfhKXGPqt7kZ72aN
 github.com/gorilla/websocket v1.5.3/go.mod h1:YR8l580nyteQvAITg2hZ9XVh4b55+EU/adAjf1fMHhE=
 github.com/json-iterator/go v1.1.12 h1:PV8peI4a0ysnczrg+LtxykD8LfKY9ML6u2jnxaEnrnM=
 github.com/json-iterator/go v1.1.12/go.mod h1:e30LSqwooZae/UwlEbR2852Gd8hjQvJoHmT4TnhNGBo=
-github.com/mattn/go-mastodon v0.0.11 h1:Zcvc/8EHpf3os1mwAuUUB5es5VnfVdAeb4ed6ByJnCY=
-github.com/mattn/go-mastodon v0.0.11/go.mod h1:0DcwYEkqigrvknMvjmfKXLP0vYyeYm+vBdUOvoHcczg=
+github.com/mattn/go-mastodon v0.0.13 h1:ZQaij7lw7N81KuqbYJeTMSfsO53GZETpi1mXcxsuYIQ=
+github.com/mattn/go-mastodon v0.0.13/go.mod h1:9ljK/rR6veDDzO3z2IdUYDBpATgi0cXotDacI3yK+jM=
 github.com/michimani/gotwi v0.18.1 h1:Tp7uia9qby8I0AXk9oDZRqaCPg31qyQ7NkeyiGDCDaE=
 github.com/michimani/gotwi v0.18.1/go.mod h1:yz1cyV/30Uy/KGQyN8BVfXFPt/63Imzonykny8/SMi0=
 github.com/mmcdole/gofeed v1.3.0 h1:5yn+HeqlcvjMeAI4gu6T+crm7d0anY85+M+v6fIFNG4=
